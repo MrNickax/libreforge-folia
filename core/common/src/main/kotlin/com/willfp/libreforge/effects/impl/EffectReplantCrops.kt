@@ -120,7 +120,7 @@ object EffectReplantCrops : Effect<NoCompileData>("replant_crops") {
 
         data.age = 0
 
-        plugin.scheduler.run {
+        Bukkit.getRegionScheduler().run(plugin, block.location) {
             block.type = type
             block.blockData = data
 

@@ -23,17 +23,21 @@ object TriggerEnterClaim : Trigger("enter_claim") {
         val player = Bukkit.getPlayer(landPlayer.uid) ?: return
         val location = player.location
 
-        Bukkit.getScheduler().runTask(plugin, Runnable { 
-        // TriggerDispatchEvent may only be triggered synchronously.
-            this.dispatch(
-                player.toDispatcher(),
-                TriggerData(
-                    player = player,
-                    event = event,
-                    location = location,
-                    text = event.area.name
+        player.scheduler.run(
+            plugin,
+            {
+                // TriggerDispatchEvent may only be triggered synchronously.
+                this.dispatch(
+                    player.toDispatcher(),
+                    TriggerData(
+                        player = player,
+                        event = event,
+                        location = location,
+                        text = event.area.name
+                    )
                 )
-            )
-        })
+            },
+            {}
+        )
     }
 }

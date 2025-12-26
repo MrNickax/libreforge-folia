@@ -19,21 +19,24 @@ object TriggerExitClaim : Trigger("exit_claim") {
 
     @EventHandler(ignoreCancelled = true)
     fun handle(event: PlayerAreaLeaveEvent) {
-        val landPlayer = event.landPlayer ?: return
-        val player = Bukkit.getPlayer(landPlayer.uid) ?: return
-        val location = player.location
+        val player = Bukkit.getPlayer(event.playerUUID) ?: return
+        if (!player.isConnected) return
 
-        Bukkit.getScheduler().runTask(plugin, Runnable {
-        // TriggerDispatchEvent may only be triggered synchronously.
-            this.dispatch(
-                player.toDispatcher(),
-                TriggerData(
-                    player = player,
-                    event = event,
-                    location = location,
-                    text = event.area.name
+        player.scheduler.run(
+            plugin,
+            {
+                // TriggerDispatchEvent may only be triggered synchronously.
+                this.dispatch(
+                    player.toDispatcher(),
+                    TriggerData(
+                        player = player,
+                        event = event,
+                        location = player.location.clone(),
+                        text = event.area.name
+                    )
                 )
-            )
-        })
+            },
+            {}
+        )
     }
 }

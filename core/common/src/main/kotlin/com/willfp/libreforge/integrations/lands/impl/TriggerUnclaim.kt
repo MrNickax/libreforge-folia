@@ -11,6 +11,7 @@ import me.angeschossen.lands.api.events.land.claiming.selection.LandUnclaimSelec
 import org.bukkit.Bukkit
 import org.bukkit.event.EventHandler
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 object TriggerUnclaim : Trigger("unclaim") {
     override val parameters = setOf(
@@ -20,29 +21,34 @@ object TriggerUnclaim : Trigger("unclaim") {
         TriggerParameter.VALUE
     )
 
-    private val multiChunkUnclaimingPlayers = mutableMapOf<UUID, Int>()
+    private val multiChunkUnclaimingPlayers = ConcurrentHashMap<UUID, Int>()
 
     @EventHandler(ignoreCancelled = true)
     fun handle(event: LandUnclaimSelectionEvent) {
         val landPlayer = event.landPlayer ?: return
         val player = Bukkit.getPlayer(landPlayer.uid) ?: return
 
-        if (event.affectedChunks.size > 1) {
-            multiChunkUnclaimingPlayers[player.uniqueId] = event.affectedChunks.size
+        val affectedChunksSize = event.affectedChunks.size
+        if (affectedChunksSize > 1) {
+            multiChunkUnclaimingPlayers[player.uniqueId] = affectedChunksSize
         }
 
-        Bukkit.getScheduler().runTask(plugin, Runnable { 
-        // TriggerDispatchEvent may only be triggered synchronously.
-            this.dispatch(
-                player.toDispatcher(),
-                TriggerData(
-                    player = player,
-                    event = event,
-                    location = player.location,
-                    value = event.affectedChunks.size.toDouble()
+        player.scheduler.run(
+            plugin,
+            {
+                // TriggerDispatchEvent may only be triggered synchronously.
+                this.dispatch(
+                    player.toDispatcher(),
+                    TriggerData(
+                        player = player,
+                        event = event,
+                        location = player.location.clone(),
+                        value = affectedChunksSize.toDouble()
+                    )
                 )
-            )
-        })
+            },
+            {}
+        )
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -81,17 +87,21 @@ object TriggerUnclaim : Trigger("unclaim") {
             return
         }
 
-        Bukkit.getScheduler().runTask(plugin, Runnable { 
-        // TriggerDispatchEvent may only be triggered synchronously.
-            this.dispatch(
-                player.toDispatcher(),
-                TriggerData(
-                    player = player,
-                    event = event,
-                    location = player.location,
-                    value = 1.0
+        player.scheduler.run(
+            plugin,
+            {
+                // TriggerDispatchEvent may only be triggered synchronously.
+                this.dispatch(
+                    player.toDispatcher(),
+                    TriggerData(
+                        player = player,
+                        event = event,
+                        location = player.location.clone(),
+                        value = 1.0
+                    )
                 )
-            )
-        })
+            },
+            {}
+        )
     }
 }

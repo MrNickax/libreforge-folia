@@ -32,7 +32,11 @@ object TriggerGroupStatic : TriggerGroup("static") {
             for ((interval, trigger) in registry) {
                 if (tick % interval == 0) {
                     for (player in Bukkit.getOnlinePlayers()) {
-                        trigger.dispatch(player)
+                        player.scheduler.run(
+                            plugin,
+                            { trigger.dispatch(player) },
+                            {}
+                        )
                     }
                 }
             }

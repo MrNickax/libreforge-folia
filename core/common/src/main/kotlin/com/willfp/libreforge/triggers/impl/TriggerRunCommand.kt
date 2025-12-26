@@ -19,15 +19,19 @@ object TriggerRunCommand : Trigger("run_command") {
     fun handle(event: PlayerCommandPreprocessEvent) {
         val player = event.player
 
-        plugin.scheduler.run {
-            this.dispatch(
-                player.toDispatcher(),
-                TriggerData(
-                    player = player,
-                    location = player.location,
-                    text = event.message
+        player.scheduler.run(
+            plugin,
+            {
+                this.dispatch(
+                    player.toDispatcher(),
+                    TriggerData(
+                        player = player,
+                        location = player.location,
+                        text = event.message
+                    )
                 )
-            )
-        }
+            },
+            {}
+        )
     }
 }

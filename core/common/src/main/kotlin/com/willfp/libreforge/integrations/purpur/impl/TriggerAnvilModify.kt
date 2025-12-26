@@ -1,12 +1,14 @@
 package com.willfp.libreforge.integrations.purpur.impl
 
+import com.willfp.eco.core.gui.player
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.event.EventHandler
+import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.PrepareAnvilEvent
-import org.purpurmc.purpur.event.inventory.AnvilTakeResultEvent
+import org.bukkit.inventory.AnvilInventory
 import java.util.concurrent.ConcurrentHashMap
 
 object TriggerAnvilModify : Trigger("anvil_modify") {
@@ -29,10 +31,12 @@ object TriggerAnvilModify : Trigger("anvil_modify") {
 
     // Fire trigger when item is actually taken
     @EventHandler(ignoreCancelled = true)
-    fun onTake(event: AnvilTakeResultEvent) {
+    fun onTake(event: InventoryClickEvent) {
         val player = event.player
-        @Suppress("USELESS_ELVIS")
-        val result = event.result ?: return
+        if (!player.isConnected) return
+
+        val inventory = event.clickedInventory as? AnvilInventory ?: return
+        val result = inventory.result ?: return
 
         val cost = playerCosts.remove(player) ?: return
 

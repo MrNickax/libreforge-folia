@@ -16,6 +16,7 @@ import com.willfp.libreforge.toFloat3
 import com.willfp.libreforge.toVector
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.GameMode
 import org.bukkit.entity.AbstractArrow
 import org.bukkit.entity.EntityType
@@ -90,61 +91,60 @@ object EffectHoming : Effect<List<TestableEntity>>("homing") {
 
         arrow.setMetadata(META_KEY_TRACKED, plugin.createMetadataValue(true))
 
-        plugin.runnableFactory.create { task ->
-            checks++
+        arrow.scheduler.runAtFixedRate(
+            plugin,
+            {
+                checks++
 
-            if (checks > MAX_CHECKS) {
-                task.cancel()
-            }
-
-            if (arrow.isDead || arrow.isInBlock || arrow.isOnGround) {
-                task.cancel()
-            }
-
-            val entities = arrow.getNearbyEntities(distance, distance, distance)
-                .asSequence()
-                .filterIsInstance<LivingEntity>()
-                .filterNot { it.uniqueId == player.uniqueId }
-                .filterNot { it.type in setOf(EntityType.ENDERMAN, EntityType.ARMOR_STAND) }
-                .filterNot { it.isDead }
-                .filter { AntigriefManager.canInjure(player, it) }
-                .filter { if (targets.isNotEmpty()) targets.any { t -> t.matches(it) } else true }
-                .filter { if (it is Player) it.gameMode in setOf(GameMode.ADVENTURE, GameMode.SURVIVAL) else true }
-                .sortedBy { it.location.distanceSquared(arrow.location) }
-
-            for (entity in entities) {
-                val dist = arrow.location.toFloat3().distance(entity.eyeLocation.toFloat3())
-
-                if (dist < 1.0) {
-                    task.cancel()
-                    break
+                if (checks > MAX_CHECKS) {
+                    it.cancel()
                 }
 
-                val vector = entity.eyeLocation.toFloat3() - arrow.location.toFloat3()
-                val normalized = vector.normalize()
-
-                if (arrow.location.world.rayTraceBlocks(
-                        arrow.location,
-                        normalized.toVector(),
-                        dist.toDouble()
-                    )?.hitBlock?.isLiquid == false
-                ) {
-                    continue
+                if (arrow.isDead || arrow.isInBlock || arrow.isOnGround) {
+                    it.cancel()
                 }
 
-                val targetVelocity = normalized * force
+                val entities = arrow.getNearbyEntities(distance, distance, distance)
+                    .asSequence()
+                    .filterIsInstance<LivingEntity>()
+                    .filterNot { filteringEntity -> filteringEntity.uniqueId == player.uniqueId }
+                    .filterNot { filteringEntity -> filteringEntity.type in setOf(EntityType.ENDERMAN, EntityType.ARMOR_STAND) }
+                    .filterNot { filteringEntity -> filteringEntity.isDead }
+                    .filter { filteringEntity -> AntigriefManager.canInjure(player, filteringEntity) }
+                    .filter { filteringEntity -> if (targets.isNotEmpty()) targets.any { t -> t.matches(filteringEntity) } else true }
+                    .filter { filteringEntity -> if (filteringEntity is Player) filteringEntity.gameMode in setOf(GameMode.ADVENTURE, GameMode.SURVIVAL) else true }
+                    .sortedBy { filteringEntity -> filteringEntity.location.distanceSquared(arrow.location) }
 
-                val angle = abs(Math.toDegrees(arrow.velocity.angle(targetVelocity.toVector()).toDouble()))
+                for (entity in entities) {
+                    val dist = arrow.location.toFloat3().distance(entity.eyeLocation.toFloat3())
 
-                if (angle > 90) {
-                    continue
+                    if (dist < 1.0) {
+                        it.cancel()
+                        break
+                    }
+
+                    val vector = entity.eyeLocation.toFloat3() - arrow.location.toFloat3()
+                    val normalized = vector.normalize()
+
+                    val rayTrace = arrow.location.world.rayTraceBlocks(arrow.location, normalized.toVector(), dist.toDouble())
+                    if (rayTrace == null || rayTrace.hitBlock?.isLiquid == false) continue
+
+                    val targetVelocity = normalized * force
+
+                    val angle = abs(Math.toDegrees(arrow.velocity.angle(targetVelocity.toVector()).toDouble()))
+
+                    if (angle > 90) {
+                        continue
+                    }
+
+                    // Lerp between the current velocity and the target velocity
+                    arrow.velocity = lerp(arrow.velocity.toFloat3(), targetVelocity, 1 - SMOOTHNESS).toVector()
                 }
-
-                // Lerp between the current velocity and the target velocity
-                arrow.velocity = lerp(arrow.velocity.toFloat3(), targetVelocity, 1 - SMOOTHNESS).toVector()
-            }
-
-        }.runTaskTimer(3L, CHECK_DELAY)
+            },
+            {},
+            3L,
+            CHECK_DELAY
+        )
     }
 
     override fun makeCompileData(config: Config, context: ViolationContext): List<TestableEntity> {

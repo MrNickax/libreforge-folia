@@ -33,13 +33,17 @@ object EffectRemovePotionEffect : Effect<NoCompileData>("remove_potion_effect") 
             data.victim ?: return false
         }
 
-        plugin.scheduler.run {
-            toApply.removePotionEffect(
-                @Suppress("DEPRECATION")
-                PotionEffectType.getByName(config.getString("effect").uppercase())
-                    ?: PotionEffectType.LUCK
-            )
-        }
+        toApply.scheduler.run(
+            plugin,
+            {
+                toApply.removePotionEffect(
+                    @Suppress("DEPRECATION")
+                    PotionEffectType.getByName(config.getString("effect").uppercase())
+                        ?: PotionEffectType.LUCK
+                )
+            },
+            {}
+        )
 
         return true
     }

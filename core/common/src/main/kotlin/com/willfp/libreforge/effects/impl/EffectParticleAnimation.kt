@@ -14,7 +14,13 @@ import com.willfp.libreforge.toLocation
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
 import com.willfp.libreforge.xz
+import dev.romainguy.kotlin.math.Float2
+import dev.romainguy.kotlin.math.Float3
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask
+import org.bukkit.Bukkit
 import org.bukkit.entity.LivingEntity
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 object EffectParticleAnimation : Effect<ParticleAnimationBlock<*>?>("particle_animation") {
     override val parameters = setOf(
@@ -50,63 +56,100 @@ object EffectParticleAnimation : Effect<ParticleAnimationBlock<*>?>("particle_an
 
         val args = config.getSubsection("particle_args")
 
-        plugin.runnableFactory.create {
-            val entityVector = if (config.getBool("use-eye-location") && entity is LivingEntity) {
-                entity.eyeLocation.toFloat3()
-            } else {
-                entity.location.toFloat3()
-            }
+        val entityCtx = AtomicReference<Pair<Float3, Float2>>()
 
-            val entityDirectionVector = entity.location.toFloat3().xz
+        var entityScheduledTask: ScheduledTask
+        var playerScheduledTask: ScheduledTask? = null
 
-            val locationVector = location.toFloat3()
+        entityScheduledTask = entity.scheduler.runAtFixedRate(
+            plugin,
+            {
+                if (playerScheduledTask != null && playerScheduledTask!!.isCancelled) {
+                    it.cancel()
+                    return@runAtFixedRate
+                }
 
-            val vectors = if (args.has("tick-multiplier")) {
-                val mult = args.getIntFromExpression("tick-multiplier", data)
+                val entityVector = if (config.getBool("use-eye-location") && entity is LivingEntity) {
+                    entity.eyeLocation.toFloat3()
+                } else {
+                    entity.location.toFloat3()
+                }
 
-                val mockTicks = (tick * mult until (tick * mult) + mult)
+                val entityDirectionVector = entity.location.toFloat3().xz
+                entityCtx.set(entityVector to entityDirectionVector)
+            },
+            {},
+            1,
+            1
+        )!!
 
-                mockTicks.map { t ->
+        val locationVector = location.toFloat3()
+        playerScheduledTask = player.scheduler.runAtFixedRate(
+            plugin,
+            {
+                if (entityScheduledTask.isCancelled) {
+                    it.cancel()
+                    return@runAtFixedRate
+                }
+
+                val (entityVector, entityDirectionVector) = entityCtx.get() ?: run {
+                    it.cancel()
+                    return@runAtFixedRate
+                }
+
+                val vectors = if (args.has("tick-multiplier")) {
+                    val mult = args.getIntFromExpression("tick-multiplier", data)
+                    val mockTicks = (tick * mult until (tick * mult) + mult)
+
+                    mockTicks.map { t ->
+                        compileData.getParticleLocations(
+                            t,
+                            entityVector,
+                            entityDirectionVector.copy(),
+                            locationVector.copy(),
+                            player
+                        )
+                    }.flatten()
+                } else {
                     compileData.getParticleLocations(
-                        t,
-                        entityVector.copy(),
-                        entityDirectionVector.copy(),
-                        locationVector.copy(),
-                        player
-                    )
-                }.flatten()
-            } else {
-                compileData.getParticleLocations(
-                    tick,
-                    entityVector.copy(),
-                    entityDirectionVector.copy(),
-                    locationVector.copy(),
-                    player
-                )
-            }
-
-            for (vector in vectors) {
-                particle.spawn(
-                    vector.toLocation(world),
-                    config.getIntFromExpression("particle-amount", data)
-                )
-            }
-
-            if (vectors.any { v ->
-                    compileData.shouldStopTicking(
                         tick,
                         entityVector.copy(),
                         entityDirectionVector.copy(),
                         locationVector.copy(),
-                        v,
                         player
                     )
-                }) {
-                it.cancel()
-            }
+                }
 
-            tick++
-        }.runTaskTimerAsynchronously(1, 1)
+                for (vector in vectors) {
+                    val particleLocation = vector.toLocation(world)
+                    Bukkit.getRegionScheduler().run(plugin, particleLocation) {
+                        particle.spawn(
+                            particleLocation,
+                            config.getIntFromExpression("particle-amount", data)
+                        )
+                    }
+                }
+
+                if (vectors.any { v ->
+                        compileData.shouldStopTicking(
+                            tick,
+                            entityVector.copy(),
+                            entityDirectionVector.copy(),
+                            locationVector.copy(),
+                            v,
+                            player
+                        )
+                    }) {
+                    it.cancel()
+                    entityScheduledTask.cancel()
+                }
+
+                tick++
+            },
+            {},
+            1,
+            1
+        )!!
 
         return true
     }

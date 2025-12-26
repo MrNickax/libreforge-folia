@@ -22,16 +22,20 @@ object TriggerSendMessage : Trigger("send_message") {
     fun handle(event: AsyncPlayerChatEvent) {
         val player = event.player
 
-        plugin.scheduler.run {
-            this.dispatch(
-                player.toDispatcher(),
-                TriggerData(
-                    player = player,
-                    location = player.location,
-                    text = event.message,
-                    event = event
+        player.scheduler.run(
+            plugin,
+            {
+                this.dispatch(
+                    player.toDispatcher(),
+                    TriggerData(
+                        player = player,
+                        location = player.location,
+                        text = event.message,
+                        event = event
+                    )
                 )
-            )
-        }
+            },
+            {}
+        )
     }
 }

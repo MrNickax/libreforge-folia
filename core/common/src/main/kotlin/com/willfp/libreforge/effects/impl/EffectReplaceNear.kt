@@ -12,6 +12,7 @@ import com.willfp.libreforge.getOrNull
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.block.BlockFace
 import org.bukkit.block.data.Levelled
@@ -96,13 +97,18 @@ object EffectReplaceNear : Effect<NoCompileData>("replace_near") {
                         val oldBlockData = toReplace.blockData
                         toReplace.setMetadata("rn-block", plugin.createMetadataValue(true))
 
-                        plugin.scheduler.runLater(duration.toLong()) {
-                            if (toReplace.hasMetadata("rn-block")) {
-                                toReplace.type = oldBlock
-                                toReplace.blockData = oldBlockData
-                                toReplace.removeMetadata("rn-block", plugin)
-                            }
-                        }
+                        Bukkit.getRegionScheduler().runDelayed(
+                            plugin,
+                            toReplace.location,
+                            {
+                                if (toReplace.hasMetadata("rn-block")) {
+                                    toReplace.type = oldBlock
+                                    toReplace.blockData = oldBlockData
+                                    toReplace.removeMetadata("rn-block", plugin)
+                                }
+                            },
+                            duration.toLong()
+                        )
                     }
 
                     toReplace.type = replaceTo

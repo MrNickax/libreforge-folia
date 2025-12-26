@@ -8,6 +8,7 @@ import com.willfp.libreforge.getOrElse
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 
 object EffectStrikeLightning : Effect<NoCompileData>("strike_lightning") {
     override val parameters = setOf(
@@ -21,9 +22,12 @@ object EffectStrikeLightning : Effect<NoCompileData>("strike_lightning") {
         val amount = config.getOrElse("amount", 1) { getIntFromExpression(it, data) }
 
         for (i in 1..amount) {
-            plugin.scheduler.runLater({
-                world.strikeLightning(location)
-            }, 1)
+            Bukkit.getRegionScheduler().runDelayed(
+                plugin,
+                location,
+                { world.strikeLightning(location) },
+                1
+            )
         }
 
         return true

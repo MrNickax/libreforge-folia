@@ -9,6 +9,7 @@ import com.willfp.libreforge.TypedHolderProvider
 import com.willfp.libreforge.TypedProvidedHolder
 import com.willfp.libreforge.get
 import com.willfp.libreforge.ifType
+import com.willfp.libreforge.plugin
 import com.willfp.libreforge.registerRefreshFunction
 import com.willfp.libreforge.slot.impl.NumericSlotType
 import org.bukkit.entity.LivingEntity

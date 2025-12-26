@@ -6,6 +6,7 @@ import com.willfp.eco.core.map.listMap
 import com.willfp.libreforge.effects.EffectBlock
 import com.willfp.libreforge.slot.ItemHolderFinder
 import org.bukkit.Bukkit
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.HandlerList
@@ -277,54 +278,57 @@ private val holderCache = Caffeine.newBuilder()
     .expireAfterWrite(4, TimeUnit.SECONDS)
     .build<UUID, Collection<ProvidedHolder>>()
 
-/**
- * The holders.
- */
-val Dispatcher<*>.holders: Collection<ProvidedHolder>
-    get() = holderCache.get(this.uuid) {
-        if (this is EntityDispatcher && this.dispatcher !is Player && !plugin.configYml.getBool("refresh.entities.enabled")) {
-            return@get emptyList()
-        }
 
-        val holders = providers.flatMap { it.provide(this) }
+fun Dispatcher<*>.getHolders(): Collection<ProvidedHolder> {
+    val cached = holderCache.getIfPresent(this.uuid)
+    if (cached != null) return cached
 
-        Bukkit.getPluginManager().callEvent(
-            HolderProvideEvent(this, holders)
-        )
-
-        val old = previousHolders[this.uuid] ?: emptyList()
-
-        val newID = holders.map { it.holder.id }
-        val oldID = old.map { it.holder.id }
-
-        val added = newID without oldID
-        val removed = oldID without newID
-
-        val newByID = holders.associateBy { it.holder.id }.toNotNullMap()
-        val oldByID = old.associateBy { it.holder.id }.toNotNullMap()
-
-        for (id in added) {
-            Bukkit.getPluginManager().callEvent(
-                HolderEnableEvent(this, newByID[id], holders)
-            )
-        }
-
-        for (id in removed) {
-            Bukkit.getPluginManager().callEvent(
-                HolderDisableEvent(this, oldByID[id], old)
-            )
-        }
-
-        previousHolders[this.uuid] = holders
-
-        holders
+    if (this is EntityDispatcher && this.dispatcher !is Player && !plugin.configYml.getBool("refresh.entities.enabled")) {
+        return emptyList()
     }
+
+    if (this is EntityDispatcher && this.dispatcher is Player && !Bukkit.isOwnedByCurrentRegion(this.dispatcher)) {
+        throw IllegalStateException("Dispatcher is not owned by the current region")
+    }
+
+    val holders = providers.flatMap { it.provide(this) }
+
+    Bukkit.getPluginManager().callEvent(HolderProvideEvent(this, holders))
+
+    val old = previousHolders[this.uuid] ?: emptyList()
+
+    val newID = holders.map { it.holder.id }
+    val oldID = old.map { it.holder.id }
+
+    val added = newID without oldID
+    val removed = oldID without newID
+
+    val newByID = holders.associateBy { it.holder.id }.toNotNullMap()
+    val oldByID = old.associateBy { it.holder.id }.toNotNullMap()
+
+    for (id in added) {
+        Bukkit.getPluginManager().callEvent(
+            HolderEnableEvent(this, newByID[id], holders)
+        )
+    }
+
+    for (id in removed) {
+        Bukkit.getPluginManager().callEvent(
+            HolderDisableEvent(this, oldByID[id], old)
+        )
+    }
+
+    previousHolders[this.uuid] = holders
+    holderCache.put(this.uuid, holders)
+
+    return holders
+}
 
 /**
  * Get holders of a specific type.
  */
 inline fun <reified T : Holder> Dispatcher<*>.getHoldersOfType(): Collection<T> {
-    return this.holders.mapNotNull { it.holder as? T }
+    return this.getHolders().mapNotNull { it.holder as? T }
 }
 
 @Deprecated(
@@ -333,7 +337,7 @@ inline fun <reified T : Holder> Dispatcher<*>.getHoldersOfType(): Collection<T> 
     DeprecationLevel.ERROR
 )
 val Player.holders: Collection<ProvidedHolder>
-    get() = this.toDispatcher().holders
+    get() = this.toDispatcher().getHolders()
 
 /**
  * Invalidate holder cache to force rescan.
@@ -394,7 +398,7 @@ fun ProvidedHolder.getActiveEffects(player: Player) =
  * Recalculate active effects.
  */
 fun Dispatcher<*>.calculateActiveEffects() =
-    this.holders.getProvidedActiveEffects(this)
+    this.getHolders().getProvidedActiveEffects(this)
 
 @Deprecated(
     "Use calculateActiveEffects on a dispatcher instead",

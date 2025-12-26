@@ -1,6 +1,7 @@
 package com.willfp.libreforge.integrations.paper.impl
 
 import com.willfp.libreforge.ProvidedHolder
+import com.willfp.libreforge.getHolders
 import com.willfp.libreforge.holders
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.toDispatcher
@@ -34,7 +35,7 @@ object TriggerTridentAttack : Trigger("trident_attack") {
 
         trident.setMetadata(
             META_KEY,
-            plugin.metadataValueFactory.create(shooter.toDispatcher().holders)
+            plugin.metadataValueFactory.create(shooter.toDispatcher().getHolders())
         )
     }
 

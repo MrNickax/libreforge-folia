@@ -161,7 +161,11 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
                     continue
                 }
 
-                player.toDispatcher().refreshHolders()
+                player.scheduler.run(
+                    plugin,
+                    { player.toDispatcher().refreshHolders() },
+                    {}
+                )
             }
         }
 
@@ -175,7 +179,11 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
                 plugin.scheduler.runTimer(currentOffset, configYml.getInt("refresh.entities.interval").toLong()) {
                     for (entity in world.entities) {
                         if (entity is LivingEntity) {
-                            entity.toDispatcher().refreshHolders()
+                            entity.scheduler.run(
+                                plugin,
+                                { entity.toDispatcher().refreshHolders() },
+                                {}
+                            )
                         }
                     }
                 }

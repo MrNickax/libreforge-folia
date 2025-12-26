@@ -10,6 +10,7 @@ import com.willfp.libreforge.getOrElse
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 
 object EffectSpawnParticle : Effect<NoCompileData>(
     "spawn_particle"
@@ -27,7 +28,7 @@ object EffectSpawnParticle : Effect<NoCompileData>(
         val particle = Particles.lookup(config.getString("particle"))
         val amount = config.getOrElse("amount", 1) { getIntFromExpression(it, data) }
 
-        plugin.scheduler.runAsync {
+        Bukkit.getRegionScheduler().run(plugin, location) {
             particle.spawn(location, amount)
         }
 

@@ -13,6 +13,7 @@ import com.willfp.libreforge.getIntFromExpression
 import com.willfp.libreforge.mutators.MutatorList
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.DispatchedTrigger
+import org.bukkit.Bukkit
 
 /**
  * Things that are like a chain element (e.g. Blocks, Elements).
@@ -163,14 +164,19 @@ abstract class ElementLike : ConfigurableElement {
         } else {
             // Delay between each repeat.
             var repeats = 0
-            plugin.runnableFactory.create { task ->
-                repeats++
-                trigger()
+            Bukkit.getGlobalRegionScheduler().runAtFixedRate(
+                plugin,
+                {
+                    repeats++
+                    trigger()
 
-                if (repeats >= repeatTimes) {
-                    task.cancel()
-                }
-            }.runTaskTimer(delay, delay)
+                    if (repeats >= repeatTimes) {
+                        it.cancel()
+                    }
+                },
+                delay,
+                delay
+            )
         }
 
         // Code here is fucking disgusting duplicating the delay check.

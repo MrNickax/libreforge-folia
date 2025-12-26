@@ -9,6 +9,7 @@ import com.willfp.libreforge.effects.Effects
 import com.willfp.libreforge.effects.impl.EffectAddHolder
 import com.willfp.libreforge.effects.impl.EffectAddHolderToVictim
 import com.willfp.libreforge.filters.Filters
+import com.willfp.libreforge.getHolders
 import com.willfp.libreforge.holders
 import com.willfp.libreforge.mutators.Mutators
 import com.willfp.libreforge.points
@@ -81,7 +82,7 @@ internal class CommandDebug(
 
         if (sender is Player) {
             plugin.logger.info("Player holders:")
-            plugin.logger.info(sender.toDispatcher().holders.joinToString(", ") { it.holder.id.toString() })
+            plugin.logger.info(sender.toDispatcher().getHolders().joinToString(", ") { it.holder.id.toString() })
 
             plugin.logger.info("Player active effects:")
             plugin.logger.info(sender.toDispatcher().activeEffects.flatMap { it.effects.map { it.effect.id } }.joinToString(", "))

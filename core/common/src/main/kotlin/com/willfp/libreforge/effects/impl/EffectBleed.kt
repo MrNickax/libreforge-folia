@@ -11,7 +11,7 @@ import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
 import com.willfp.libreforge.triggers.impl.TriggerKill
-
+import org.bukkit.Bukkit
 
 object EffectBleed : Effect<NoCompileData>("bleed") {
     override val parameters = setOf(
@@ -33,30 +33,36 @@ object EffectBleed : Effect<NoCompileData>("bleed") {
 
         var current = 0
 
-        plugin.runnableFactory.create {
-            current++
+        victim.scheduler.runAtFixedRate(
+            plugin,
+            {
+                current++
 
-            val killed = damage >= victim.health
+                val killed = damage >= victim.health
 
-            if (killed) {
-                if (Prerequisite.HAS_PAPER.isMet) {
-                    victim.killer = data.player
+                if (killed) {
+                    if (Prerequisite.HAS_PAPER.isMet) {
+                        victim.killer = data.player
+                    }
+
+                    if (data.player != null) {
+                        TriggerKill.force(
+                            data.player,
+                            victim
+                        )
+                    }
                 }
 
-                if (data.player != null) {
-                    TriggerKill.force(
-                        data.player,
-                        victim
-                    )
+                victim.damage(damage)
+
+                if (current >= amount || killed) {
+                    it.cancel()
                 }
-            }
-
-            victim.damage(damage)
-
-            if (current >= amount || killed) {
-                it.cancel()
-            }
-        }.runTaskTimer(interval.toLong(), interval.toLong())
+            },
+            {},
+            interval.toLong(),
+            interval.toLong()
+        )
 
         return true
     }

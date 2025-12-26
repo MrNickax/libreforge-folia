@@ -9,6 +9,7 @@ import com.willfp.libreforge.getIntFromExpression
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.event.Listener
 
 object EffectCreateExplosion : Effect<NoCompileData>("create_explosion"), Listener {
@@ -34,10 +35,16 @@ object EffectCreateExplosion : Effect<NoCompileData>("create_explosion"), Listen
         val breakBlocks = config.getBoolOrNull("break_blocks") ?: true
 
         for (i in 1..amount) {
-            plugin.scheduler.runLater(i.toLong()) {
-                world.createExplosion(location, power.toFloat(), fire, breakBlocks, source)
-                }
-            }
+            Bukkit.getRegionScheduler().runDelayed(
+                plugin,
+                location,
+                {
+                    world.createExplosion(location, power.toFloat(), fire, breakBlocks, source)
+                },
+                i.toLong()
+            )
+        }
+        
         return true
     }
 }

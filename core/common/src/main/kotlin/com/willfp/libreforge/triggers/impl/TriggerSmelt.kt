@@ -35,13 +35,17 @@ object TriggerSmelt : Trigger("smelt") {
         val location = inventory.location ?: return
         val oldContents = inventory.contents
 
-        plugin.scheduler.runLater(2) {
-            val newContents = inventory.contents
+        player.scheduler.run(
+            plugin,
+            {
+                val newContents = inventory.contents
 
-            if (!oldContents.contentEquals(newContents)) {
-                playerCache.put(location, player)
-            }
-        }
+                if (!oldContents.contentEquals(newContents)) {
+                    playerCache.put(location, player)
+                }
+            },
+            {}
+        )
     }
 
     @EventHandler(ignoreCancelled = true)

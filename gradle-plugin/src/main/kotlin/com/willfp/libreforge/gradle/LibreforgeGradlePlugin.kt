@@ -10,6 +10,8 @@ class LibreforgeGradlePlugin : Plugin<Project> {
 
         val libreforgeJar = project.tasks.register("libreforgeJar", Jar::class.java) {
             it.destinationDirectory.set(project.file("${project.rootDir}/bin"))
+            println("Setting archive file name to ${project.name} v${project.version}.jar")
+            println("It will be located at ${project.file("${project.rootDir}/bin")}")
             it.archiveFileName.set("${project.name} v${project.version}.jar")
 
             it.dependsOn(project.tasks.getByName("shadowJar"))

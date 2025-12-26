@@ -10,6 +10,7 @@ import com.willfp.libreforge.plugin
 import com.willfp.libreforge.toFloat3
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 
 object EffectAnimation : Effect<AnimationBlock<*, *>?>("animation") {
     override val parameters = setOf(
@@ -25,8 +26,9 @@ object EffectAnimation : Effect<AnimationBlock<*, *>?>("animation") {
     }
 
     override fun onTrigger(config: Config, data: TriggerData, compileData: AnimationBlock<*, *>?): Boolean {
+        if (compileData == null) return false
+
         val location = data.location?.clone() ?: return false
-        compileData ?: return false
 
         var tick = 0
 
@@ -37,27 +39,33 @@ object EffectAnimation : Effect<AnimationBlock<*, *>?>("animation") {
                 data
             )
 
-            plugin.runnableFactory.create {
-                if (
-                    animationBlock.play(
-                        tick,
-                        location,
-                        location.direction.toFloat3(),
-                        data,
-                        animationData
-                    )
-                ) {
-                    animationBlock.finish(
-                        location,
-                        location.direction.toFloat3(),
-                        data,
-                        animationData
-                    )
-                    it.cancel()
-                }
+            Bukkit.getRegionScheduler().runAtFixedRate(
+                plugin,
+                location,
+                {
+                    if (
+                        animationBlock.play(
+                            tick,
+                            location,
+                            location.direction.toFloat3(),
+                            data,
+                            animationData
+                        )
+                    ) {
+                        animationBlock.finish(
+                            location,
+                            location.direction.toFloat3(),
+                            data,
+                            animationData
+                        )
+                        it.cancel()
+                    }
 
-                tick++
-            }.runTaskTimer(0, 1)
+                    tick++
+                },
+                0,
+                50
+            )
         }
 
         playAnimation(compileData)

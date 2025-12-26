@@ -15,6 +15,7 @@ import com.willfp.libreforge.nest
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.registerGenericHolderProvider
 import com.willfp.libreforge.triggers.TriggerData
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.entity.EntityDeathEvent
@@ -44,11 +45,18 @@ object EffectAddHolder : Effect<HolderTemplate>("add_holder") {
 
         holders[dispatcher.uuid].add(holder)
 
-        plugin.scheduler.runLater(duration.toLong()) {
-            holders[dispatcher.uuid].remove(holder)
-            if (holders[dispatcher.uuid].isEmpty()) {
-                holders.remove(dispatcher.uuid)
-            }
+        if (dispatcher.dispatcher is Entity) {
+            (dispatcher.dispatcher as Entity).scheduler.runDelayed(
+                plugin,
+                {
+                    holders[dispatcher.uuid].remove(holder)
+                    if (holders[dispatcher.uuid].isEmpty()) {
+                        holders.remove(dispatcher.uuid)
+                    }
+                },
+                {},
+                duration.toLong()
+            )
         }
 
         return true

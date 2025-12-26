@@ -11,6 +11,7 @@ import com.willfp.libreforge.get
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.toDispatcher
 import org.bukkit.Bukkit
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -54,11 +55,17 @@ class ConditionBlock<T> internal constructor(
              */
 
             if (!syncMetCache.asMap().containsKey(dispatcher.uuid)) {
-                plugin.scheduler.run {
-                    // Double check that it isn't cached by the time we run
-                    if (!syncMetCache.asMap().containsKey(dispatcher.uuid)) {
-                        syncMetCache.put(dispatcher.uuid, isMet(dispatcher, holder))
-                    }
+                if (dispatcher.dispatcher is Entity) {
+                    (dispatcher.dispatcher as Entity).scheduler.run(
+                        plugin,
+                        {
+                            // Double check that it isn't cached by the time we run
+                            if (!syncMetCache.asMap().containsKey(dispatcher.uuid)) {
+                                syncMetCache.put(dispatcher.uuid, isMet(dispatcher, holder))
+                            }
+                        },
+                        {}
+                    )
                 }
             }
 

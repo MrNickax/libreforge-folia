@@ -35,13 +35,18 @@ object TriggerBrew : Trigger("brew") {
         val location = inventory.location ?: return
         val oldContents = inventory.contents
 
-        plugin.scheduler.runLater(2) {
-            val newContents = inventory.contents
+        player.scheduler.runDelayed(
+            plugin,
+            {
+                val newContents = inventory.contents
 
-            if (!oldContents.contentEquals(newContents)) {
-                playerCache.put(location, player)
-            }
-        }
+                if (!oldContents.contentEquals(newContents)) {
+                    playerCache.put(location, player)
+                }
+            },
+            {},
+            2
+        )
     }
 
     @EventHandler(ignoreCancelled = true)

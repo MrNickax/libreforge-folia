@@ -4,7 +4,7 @@ dependencies {
     }
     implementation("com.willfp:ModelEngineBridge:1.3.0")
 
-    compileOnly("org.purpurmc.purpur:purpur-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("dev.folia:folia-api:1.21.8-R0.1-SNAPSHOT")
     compileOnly("net.kyori:adventure-text-minimessage:4.14.0")
     compileOnly("com.github.NuVotifier:NuVotifier:2.7.2")
     compileOnly("dev.aurelium:auraskills-api-bukkit:2.0.0")
