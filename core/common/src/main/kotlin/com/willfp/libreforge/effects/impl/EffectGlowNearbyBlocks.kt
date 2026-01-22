@@ -3,7 +3,6 @@
 package com.willfp.libreforge.effects.impl
 
 import com.willfp.eco.core.config.interfaces.Config
-import com.willfp.eco.util.TeamUtils
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
 import com.willfp.libreforge.effects.Effect
@@ -23,7 +22,6 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.event.world.ChunkUnloadEvent
-import org.bukkit.scoreboard.Team
 import java.util.UUID
 
 object EffectGlowNearbyBlocks : Effect<NoCompileData>("glow_nearby_blocks") {
@@ -54,7 +52,7 @@ object EffectGlowNearbyBlocks : Effect<NoCompileData>("glow_nearby_blocks") {
             Pair(material, color)
         }
 
-        val toReveal = mutableMapOf<Block, Team>()
+        val toReveal = mutableListOf<Block>()
 
         for (x in -radius..radius) {
             for (y in -radius..radius) {
@@ -69,12 +67,12 @@ object EffectGlowNearbyBlocks : Effect<NoCompileData>("glow_nearby_blocks") {
 
                     val color = colors[block.type] ?: continue
 
-                    toReveal[block] = TeamUtils.fromChatColor(color)
+                    toReveal.add(block)
                 }
             }
         }
 
-        for ((block, team) in toReveal) {
+        for (block in toReveal) {
             val shulker = block.world.spawnEntity(block.location, EntityType.SHULKER) as Shulker
             shulker.isInvulnerable = true
             shulker.isSilent = true
@@ -83,14 +81,12 @@ object EffectGlowNearbyBlocks : Effect<NoCompileData>("glow_nearby_blocks") {
             shulker.isGlowing = true
             shulker.isInvisible = true
             shulker.setMetadata("gnb-shulker", plugin.metadataValueFactory.create(true))
-            team.addEntry(shulker.uniqueId.toString())
             block.setMetadata("gnb-uuid", plugin.metadataValueFactory.create(shulker.uniqueId))
 
             Bukkit.getRegionScheduler().runDelayed(
                 plugin,
                 block.location,
                 {
-                    team.removeEntry(shulker.uniqueId.toString())
                     shulker.remove()
                     block.removeMetadata("gnb-uuid", plugin)
                 },

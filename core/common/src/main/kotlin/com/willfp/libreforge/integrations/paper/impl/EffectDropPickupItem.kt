@@ -4,7 +4,6 @@ package com.willfp.libreforge.integrations.paper.impl
 
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.eco.core.items.Items
-import com.willfp.eco.util.TeamUtils
 import com.willfp.libreforge.ViolationContext
 import com.willfp.libreforge.arguments
 import com.willfp.libreforge.effects.Chain
@@ -19,7 +18,6 @@ import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.ChatColor
 import org.bukkit.event.EventHandler
 import org.bukkit.event.player.PlayerAttemptPickupItemEvent
-import org.bukkit.scoreboard.Team
 
 object EffectDropPickupItem : Effect<Chain?>("drop_pickup_item") {
     private const val META_KEY = "libreforge:pickup_item"
@@ -40,7 +38,7 @@ object EffectDropPickupItem : Effect<Chain?>("drop_pickup_item") {
         val player = data.player ?: return false
         val chain = compileData ?: return false
 
-        val glowColor = config.getStringOrNull("glow-color")
+        config.getStringOrNull("glow-color")
             ?.let { runCatching { ChatColor.valueOf(it.uppercase()) }.getOrNull() }
 
         val itemStack = Items.lookup(config.getString("item")).item
@@ -49,17 +47,10 @@ object EffectDropPickupItem : Effect<Chain?>("drop_pickup_item") {
 
         val meta = Meta(
             chain,
-            data.dispatch(player.toDispatcher()),
-            glowColor?.let { TeamUtils.fromChatColor(it) }
+            data.dispatch(player.toDispatcher())
         )
 
         item.setMetadata(META_KEY, plugin.metadataValueFactory.create(meta))
-
-        if (glowColor != null) {
-            val team = TeamUtils.fromChatColor(glowColor)
-            team.addEntry(item.uniqueId.toString())
-            item.isGlowing = true
-        }
 
         return true
     }
@@ -78,7 +69,6 @@ object EffectDropPickupItem : Effect<Chain?>("drop_pickup_item") {
         item.remove()
 
         meta.chain.trigger(meta.trigger)
-        meta.team?.removeEntry(item.uniqueId.toString())
     }
 
     override fun makeCompileData(config: Config, context: ViolationContext): Chain? {
@@ -91,7 +81,6 @@ object EffectDropPickupItem : Effect<Chain?>("drop_pickup_item") {
 
     private data class Meta(
         val chain: Chain,
-        val trigger: DispatchedTrigger,
-        val team: Team?
+        val trigger: DispatchedTrigger
     )
 }

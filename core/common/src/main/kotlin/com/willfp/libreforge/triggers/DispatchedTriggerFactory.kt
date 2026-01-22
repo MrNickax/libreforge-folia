@@ -33,11 +33,15 @@ class DispatchedTriggerFactory(
         }
 
         val hash = (trigger.hashCode() shl 5) xor data.hashCode()
-        if (hash in dispatcherTriggers[dispatcher.uuid]) {
+        val dispatcherUuid = dispatcher.uuid
+        
+        // Initialize the entry if it doesn't exist, then check and add
+        val hashes = dispatcherTriggers.getOrPut(dispatcherUuid) { mutableListOf() }
+        if (hash in hashes) {
             return null
         }
 
-        dispatcherTriggers[dispatcher.uuid].add(hash)
+        hashes.add(hash)
         return DispatchedTrigger(dispatcher, trigger, data.copy(dispatcher = dispatcher))
     }
 

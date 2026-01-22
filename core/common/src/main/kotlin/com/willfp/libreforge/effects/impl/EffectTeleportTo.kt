@@ -33,7 +33,7 @@ object EffectTeleportTo : Effect<NoCompileData>("teleport_to") {
             config.getDoubleFromExpression("z", data)
         )
 
-        player.teleport(loc)
+        player.teleportAsync(loc)
 
         return true
     }

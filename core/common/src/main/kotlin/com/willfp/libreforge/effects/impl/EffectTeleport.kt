@@ -14,10 +14,12 @@ object EffectTeleport : Effect<NoCompileData>("teleport") {
 
     override fun onTrigger(config: Config, data: TriggerData, compileData: NoCompileData): Boolean {
         val player = data.player ?: return false
+
         val location = data.location ?: return false
         location.pitch = player.location.pitch
         location.yaw = player.location.yaw
-        player.teleport(location)
+
+        player.teleportAsync(location)
 
         return true
     }

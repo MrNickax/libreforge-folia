@@ -30,8 +30,15 @@ object EffectPullToLocation : Effect<NoCompileData>("pull_to_location") {
             return false
         }
 
-        val vector = location.toFloat3()
-            .minus(player.location.toFloat3())
+        val direction = location.toFloat3().minus(player.location.toFloat3())
+        
+        // Check if the direction vector is zero (player is at target location)
+        // Using component check since Float3 doesn't have a length() method
+        if (direction.x == 0f && direction.y == 0f && direction.z == 0f) {
+            return false
+        }
+
+        val vector = direction
             .normalize()
             .plus(Float3(0f, config.getDoubleFromExpression("jump", data).toFloat(), 0f))
             .times(config.getDoubleFromExpression("velocity", data).toFloat())

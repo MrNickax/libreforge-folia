@@ -1,3 +1,4 @@
+
 package com.willfp.libreforge.effects.impl
 
 import com.willfp.eco.core.config.interfaces.Config
@@ -20,6 +21,8 @@ object EffectSpawnEntity : Effect<TestableEntity>("spawn_entity") {
 
     override fun onTrigger(config: Config, data: TriggerData, compileData: TestableEntity): Boolean {
         val location = data.location ?: return false
+        location.world ?: return false
+
         compileData.spawn(location)
 
         return true

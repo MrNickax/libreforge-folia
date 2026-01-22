@@ -46,15 +46,21 @@ object EffectAddHolderToVictim : Effect<HolderTemplate>("add_holder_to_victim") 
 
         holders[player.uniqueId].add(holder)
 
-        plugin.scheduler.runLater(duration.toLong()) {
-            holders[player.uniqueId].remove(holder)
-            if (holders[player.uniqueId].isEmpty()) {
-                holders.remove(player.uniqueId)
-            }
-        }
+            // Schedule removal on the entity's thread instead of globally
+            player.scheduler.runDelayed(
+                plugin,
+                { _ ->
+                    holders[player.uniqueId].remove(holder)
+                    if (holders[player.uniqueId].isEmpty()) {
+                        holders.remove(player.uniqueId)
+                    }
+                },
+                { /* onCancel - no action needed */ },
+                duration.toLong()
+            )
 
-        return true
-    }
+            return true
+        }
 
     override fun makeCompileData(config: Config, context: ViolationContext): HolderTemplate {
         val effects = Effects.compile(
