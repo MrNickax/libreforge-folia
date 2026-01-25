@@ -1,5 +1,6 @@
 package com.willfp.libreforge.triggers.impl
 
+import com.willfp.libreforge.plugin
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
@@ -36,15 +37,24 @@ object TriggerTakeEntityDamage : Trigger("take_entity_damage") {
             return
         }
 
-        this.dispatch(
-            victim.toDispatcher(),
-            TriggerData(
-                player = victim as? Player,
-                victim = attacker,
-                location = attacker.location,
-                event = event,
-                value = event.finalDamage
-            )
-        )
+        // Folia: snapshot attacker state on attacker's owning region thread,
+        // then dispatch on victim's owning region thread.
+        attacker.scheduler.run(plugin, {
+            val attackerLocation = attacker.location.clone()
+            val finalDamage = event.finalDamage
+
+            victim.scheduler.run(plugin, {
+                this.dispatch(
+                    victim.toDispatcher(),
+                    TriggerData(
+                        player = victim as? Player,
+                        victim = attacker,
+                        location = attackerLocation,
+                        event = event,
+                        value = finalDamage
+                    )
+                )
+            }, null)
+        }, null)
     }
 }
