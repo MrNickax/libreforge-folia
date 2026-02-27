@@ -155,7 +155,7 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
 
         // Poll for changes
         val skipAFKPlayers = configYml.getBool("refresh.players.skip-afk-players")
-        plugin.scheduler.runTimer(20, 20) {
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
             for (player in Bukkit.getOnlinePlayers()) {
                 if (skipAFKPlayers && AFKManager.isAfk(player)) {
                     continue
@@ -167,7 +167,7 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
                     {}
                 )
             }
-        }
+        }, 20L, 20L)
 
         if (configYml.getBool("refresh.entities.enabled")) {
             /*
@@ -176,7 +176,10 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
              */
             var currentOffset = 30L
             for (world in Bukkit.getWorlds()) {
-                plugin.scheduler.runTimer(currentOffset, configYml.getInt("refresh.entities.interval").toLong()) {
+                val initialDelay = currentOffset
+                val period = configYml.getInt("refresh.entities.interval").toLong()
+
+                Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
                     for (entity in world.entities) {
                         if (entity is LivingEntity) {
                             entity.scheduler.run(
@@ -186,15 +189,16 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
                             )
                         }
                     }
-                }
+                }, initialDelay, period)
+
                 currentOffset += 3
             }
         }
 
         // Poll for changes in global holders
-        this.scheduler.runTimer(25, 20) {
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
             GlobalDispatcher.refreshHolders()
-        }
+        }, 25L, 20L)
     }
 
     override fun loadListeners(): List<Listener> {

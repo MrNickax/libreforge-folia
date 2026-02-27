@@ -41,10 +41,10 @@ class TriggerData(
     val victim: LivingEntity? = null,
     val block: Block? = null,
     val event: Event? = null,
-    val location: Location? = victim?.location ?: player?.location,
+    val location: Location? = safeRead { victim?.location } ?: safeRead { player?.location },
     val projectile: Projectile? = null,
-    val velocity: Vector? = player?.velocity ?: victim?.velocity,
-    val item: ItemStack? = player?.inventory?.itemInMainHand ?: victim?.equipment?.itemInMainHand,
+    val velocity: Vector? = safeRead { player?.velocity } ?: safeRead { victim?.velocity },
+    val item: ItemStack? = safeRead { player?.inventory?.itemInMainHand } ?: safeRead { victim?.equipment?.itemInMainHand },
     val text: String? = null,
     val value: Double = 1.0,
     val altValue: Double = 1.0
@@ -254,5 +254,15 @@ class TriggerData(
     ) {
         this.holder = holder ?: EmptyProvidedHolder
         this.originalPlayer = originalPlayer
+    }
+
+    companion object {
+        private inline fun <T> safeRead(block: () -> T): T? {
+            return try {
+                block()
+            } catch (_: IllegalStateException) {
+                null
+            }
+        }
     }
 }

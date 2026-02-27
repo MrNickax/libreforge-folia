@@ -6,6 +6,7 @@ import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerGroup
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 
 object TriggerGroupGlobalStatic : TriggerGroup("global_static") {
     private val registry = mutableMapOf<Int, TriggerGlobalStatic>()
@@ -21,7 +22,7 @@ object TriggerGroupGlobalStatic : TriggerGroup("global_static") {
     }
 
     override fun postRegister() {
-        plugin.scheduler.runTimer(1, 1) {
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, { _ ->
             tick++
 
             for ((interval, trigger) in registry) {
@@ -32,7 +33,7 @@ object TriggerGroupGlobalStatic : TriggerGroup("global_static") {
                     )
                 }
             }
-        }
+        }, 1L, 1L)
     }
 
     private class TriggerGlobalStatic(interval: Int) : Trigger("global_static_$interval") {

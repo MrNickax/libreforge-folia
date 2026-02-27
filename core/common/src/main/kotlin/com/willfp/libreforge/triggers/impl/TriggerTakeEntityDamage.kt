@@ -41,6 +41,7 @@ object TriggerTakeEntityDamage : Trigger("take_entity_damage") {
         // then dispatch on victim's owning region thread.
         attacker.scheduler.run(plugin, {
             val attackerLocation = attacker.location.clone()
+            val attackerItemInHand = attacker.equipment?.itemInMainHand?.clone()
             val finalDamage = event.finalDamage
 
             victim.scheduler.run(plugin, {
@@ -50,6 +51,7 @@ object TriggerTakeEntityDamage : Trigger("take_entity_damage") {
                         player = victim as? Player,
                         victim = attacker,
                         location = attackerLocation,
+                        item = attackerItemInHand,
                         event = event,
                         value = finalDamage
                     )

@@ -5,6 +5,7 @@ import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.FluidCollisionMode
 import org.bukkit.Location
 import org.bukkit.Material
@@ -126,9 +127,11 @@ object TriggerAltClick : Trigger("alt_click") {
 
         preventDoubleTriggers += player.uniqueId
 
-        plugin.scheduler.run {
-            preventDoubleTriggers -= player.uniqueId
-        }
+        Bukkit.getGlobalRegionScheduler().runDelayed(
+            plugin,
+            { preventDoubleTriggers -= player.uniqueId },
+            1L
+        )
 
         this.dispatch(
             player.toDispatcher(),

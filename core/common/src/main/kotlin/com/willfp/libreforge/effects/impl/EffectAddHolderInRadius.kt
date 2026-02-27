@@ -17,6 +17,7 @@ import com.willfp.libreforge.nest
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.registerGenericHolderProvider
 import com.willfp.libreforge.triggers.TriggerData
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import java.util.Objects
 import java.util.UUID
@@ -65,9 +66,11 @@ object EffectAddHolderInRadius : Effect<HolderTemplate>("add_holder_in_radius") 
         )
 
         holders += holder
-        plugin.scheduler.runLater(duration.toLong()) {
-            holders -= holder
-        }
+        Bukkit.getGlobalRegionScheduler().runDelayed(
+            plugin,
+            { holders -= holder },
+            duration.toLong()
+        )
 
         return true
     }

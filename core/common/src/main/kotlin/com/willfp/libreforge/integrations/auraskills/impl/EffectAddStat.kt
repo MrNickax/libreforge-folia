@@ -1,5 +1,6 @@
 package com.willfp.libreforge.integrations.auraskills.impl
 
+import com.archyx.aureliumskills.api.AureliumAPI
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.Dispatcher
 import com.willfp.libreforge.NoCompileData
@@ -8,9 +9,11 @@ import com.willfp.libreforge.arguments
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.effects.Identifiers
 import com.willfp.libreforge.get
+import com.willfp.libreforge.plugin
 import dev.aurelium.auraskills.api.AuraSkillsApi
 import dev.aurelium.auraskills.api.registry.NamespacedId
 import dev.aurelium.auraskills.api.stat.StatModifier
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 
 object EffectAddStat : Effect<NoCompileData>("add_stat") {
@@ -44,7 +47,13 @@ object EffectAddStat : Effect<NoCompileData>("add_stat") {
     override fun onDisable(dispatcher: Dispatcher<*>, identifiers: Identifiers, holder: ProvidedHolder) {
         val player = dispatcher.get<Player>() ?: return
 
-        val user = AuraSkillsApi.get().getUser(player.uniqueId)
-        user.removeStatModifier(identifiers.key.key)
+        AureliumAPI.getPlugin().playerManager.getPlayerData(player)
+            ?.removeStatModifier(identifiers.key.key, false)
+
+        Bukkit.getGlobalRegionScheduler().runDelayed(
+            plugin,
+            { AureliumAPI.getPlugin().health.reload(player) },
+            1L
+        )
     }
 }

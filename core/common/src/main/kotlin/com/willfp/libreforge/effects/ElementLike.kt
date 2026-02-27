@@ -13,7 +13,10 @@ import com.willfp.libreforge.getIntFromExpression
 import com.willfp.libreforge.mutators.MutatorList
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.DispatchedTrigger
+import com.willfp.libreforge.triggers.TriggerData
 import org.bukkit.Bukkit
+import org.bukkit.Location
+import org.bukkit.entity.Entity
 
 /**
  * Things that are like a chain element (e.g. Blocks, Elements).
@@ -54,7 +57,7 @@ abstract class ElementLike : ConfigurableElement {
      * Mutate, filter, and then trigger.
      */
     fun trigger(trigger: DispatchedTrigger): Boolean {
-        // If own chain, defer all to elements.
+        // If own a chain, defer all to elements.
         if (shouldDelegateExecution) {
             return doTrigger(trigger)
         }
@@ -150,10 +153,16 @@ abstract class ElementLike : ConfigurableElement {
             repeatCount += repeatIncrement
 
             if (config.has("repeat")) {
-                // Re-inject new placeholder with different hash
+                // Re-inject a new placeholder with a different hash
                 trigger.addPlaceholder(DynamicNumericValue("repeat_count", repeatCount))
                 injectPlaceholders(DynamicNumericValue("repeat_count", repeatCount).placeholders)
             }
+        }
+
+        fun schedulingLocation(data: TriggerData): Location? {
+            data.location?.let { if (it.world != null) return it }
+            data.player?.location?.let { if (it.world != null) return it }
+            return null
         }
 
         // Can't delay initial execution for things that modify events.
@@ -164,19 +173,61 @@ abstract class ElementLike : ConfigurableElement {
         } else {
             // Delay between each repeat.
             var repeats = 0
-            Bukkit.getGlobalRegionScheduler().runAtFixedRate(
-                plugin,
-                {
-                    repeats++
-                    trigger()
 
-                    if (repeats >= repeatTimes) {
-                        it.cancel()
-                    }
-                },
-                delay,
-                delay
-            )
+            // Prefer entity scheduler (follows moving entities), then region scheduler, then global.
+            val entity: Entity? = trigger.data.player
+                ?: trigger.data.victim
+                ?: (trigger.data.dispatcher as? Entity)
+
+            if (entity != null) {
+                entity.scheduler.runAtFixedRate(
+                    plugin,
+                    { task ->
+                        repeats++
+                        trigger()
+
+                        if (repeats >= repeatTimes) {
+                            task.cancel()
+                        }
+                    },
+                    null,
+                    delay,
+                    delay
+                )
+            } else {
+                val loc = schedulingLocation(trigger.data)
+
+                if (loc != null) {
+                    Bukkit.getRegionScheduler().runAtFixedRate(
+                        plugin,
+                        loc,
+                        { task ->
+                            repeats++
+                            trigger()
+
+                            if (repeats >= repeatTimes) {
+                                task.cancel()
+                            }
+                        },
+                        delay,
+                        delay
+                    )
+                } else {
+                    Bukkit.getGlobalRegionScheduler().runAtFixedRate(
+                        plugin,
+                        { task ->
+                            repeats++
+                            trigger()
+
+                            if (repeats >= repeatTimes) {
+                                task.cancel()
+                            }
+                        },
+                        delay,
+                        delay
+                    )
+                }
+            }
         }
 
         // Code here is fucking disgusting duplicating the delay check.

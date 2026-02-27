@@ -4,6 +4,7 @@ import com.willfp.eco.core.EcoPlugin
 import com.willfp.eco.core.map.listMap
 import com.willfp.libreforge.Dispatcher
 import com.willfp.libreforge.toDispatcher
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import java.util.UUID
 
@@ -34,7 +35,7 @@ class DispatchedTriggerFactory(
 
         val hash = (trigger.hashCode() shl 5) xor data.hashCode()
         val dispatcherUuid = dispatcher.uuid
-        
+
         // Initialize the entry if it doesn't exist, then check and add
         val hashes = dispatcherTriggers.getOrPut(dispatcherUuid) { mutableListOf() }
         if (hash in hashes) {
@@ -46,8 +47,11 @@ class DispatchedTriggerFactory(
     }
 
     internal fun startTicking() {
-        plugin.scheduler.runTimer(1, 1) {
-            dispatcherTriggers.clear()
-        }
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(
+            plugin,
+            { dispatcherTriggers.clear() },
+            1L,
+            1L
+        )
     }
 }

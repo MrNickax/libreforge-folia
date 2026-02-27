@@ -26,7 +26,7 @@ object TriggerGroupStatic : TriggerGroup("static") {
     }
 
     override fun postRegister() {
-        plugin.scheduler.runTimer(1, 1) {
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, { _ ->
             tick++
 
             for ((interval, trigger) in registry) {
@@ -40,7 +40,7 @@ object TriggerGroupStatic : TriggerGroup("static") {
                     }
                 }
             }
-        }
+        }, 1L, 1L)
     }
 
     private class TriggerStatic(interval: Int) : Trigger("static_$interval") {

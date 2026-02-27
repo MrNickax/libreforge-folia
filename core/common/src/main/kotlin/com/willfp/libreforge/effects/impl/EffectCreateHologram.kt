@@ -10,6 +10,7 @@ import com.willfp.libreforge.getFormattedStrings
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 
 object EffectCreateHologram : Effect<NoCompileData>("create_hologram") {
     override val parameters = setOf(
@@ -29,9 +30,11 @@ object EffectCreateHologram : Effect<NoCompileData>("create_hologram") {
 
         val hologram = HologramManager.createHologram(location, text)
 
-        plugin.scheduler.runLater(duration.toLong()) {
-            hologram.remove()
-        }
+        Bukkit.getGlobalRegionScheduler().runDelayed(
+            plugin,
+            { hologram.remove() },
+            duration.toLong()
+        )
 
         return true
     }

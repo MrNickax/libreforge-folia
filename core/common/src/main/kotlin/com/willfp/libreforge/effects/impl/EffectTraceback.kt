@@ -41,15 +41,17 @@ object EffectTraceback : Effect<NoCompileData>("traceback") {
     }
 
     override fun postRegister() {
-        plugin.scheduler.runTimer(20, 20) {
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, { _ ->
             for (player in Bukkit.getOnlinePlayers()) {
-                @Suppress("UNCHECKED_CAST")
-                val times = player.getMetadata(key).getOrNull(0)?.value() as? List<Location> ?: emptyList()
-                val newTimes = (if (times.size < 29) times else times.drop(1)) + player.location
+                player.scheduler.run(plugin, {
+                    @Suppress("UNCHECKED_CAST")
+                    val times = player.getMetadata(key).getOrNull(0)?.value() as? List<Location> ?: emptyList()
+                    val newTimes = (if (times.size < 29) times else times.drop(1)) + player.location
 
-                player.removeMetadata(key, plugin)
-                player.setMetadata(key, plugin.metadataValueFactory.create(newTimes))
+                    player.removeMetadata(key, plugin)
+                    player.setMetadata(key, plugin.metadataValueFactory.create(newTimes))
+                }, {})
             }
-        }
+        }, 20L, 20L)
     }
 }
