@@ -16,12 +16,18 @@ open class WeightedList<T : Weighted>(
 ) : DelegatedList<T>(list) {
     fun random() = this.randomOrNull() ?: throw NoSuchElementException("List is empty")
 
-    fun randomOrNull(): T? {
+
+    fun randomOrNull(): T? = this.randomOrNull { it.weight }
+
+    fun randomOrNull(weightSelector: (T) -> Double): T? {
         if (this.isEmpty()) {
             return null
         }
 
-        val totalWeight = this.sumOf { it.weight }
+        var totalWeight = 0.0
+        for (item in this) {
+            totalWeight += weightSelector(item).coerceAtLeast(0.0)
+        }
         if (totalWeight == 0.0) {
             val randomIndex = (Math.random() * this.size).toInt()
             return this[randomIndex]
@@ -29,14 +35,17 @@ open class WeightedList<T : Weighted>(
 
         val random = Math.random() * totalWeight
         var current = 0.0
+        var lastPositive: T? = null
         for (item in this) {
-            current += item.weight
+            val w = weightSelector(item).coerceAtLeast(0.0)
+            if (w > 0.0) lastPositive = item
+            current += w
             if (random < current) {
                 return item
             }
         }
 
-        return null
+        return lastPositive
     }
 }
 

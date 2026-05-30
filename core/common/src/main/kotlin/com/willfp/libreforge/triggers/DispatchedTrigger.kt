@@ -54,7 +54,7 @@ class DispatchedTrigger(
     }
 
     /**
-     * Generate placeholders for some [data].
+     * Generate placeholders.yml for some [data].
      *
      * This is called automatically when the trigger is dispatched,
      * and again after mutation with the updated [data].

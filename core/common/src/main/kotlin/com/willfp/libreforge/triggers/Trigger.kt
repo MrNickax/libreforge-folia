@@ -102,7 +102,7 @@ abstract class Trigger(
         if (potentialDestinations.none { it.canBeTriggeredBy(this) }) {
             return
         }
-        // Only dispatch placeholders after we know we're going to dispatch
+        // Only dispatch placeholders.yml after we know we're going to dispatch
         dispatch.generatePlaceholders()
 
         val dispatchEvent = TriggerDispatchEvent(dispatcher, dispatch)
@@ -122,7 +122,7 @@ abstract class Trigger(
             }
         }
 
-        // Only calculate placeholders once per holder
+        // Only calculate placeholders.yml once per holder
         val holderDispatches = mutableMapOf<ProvidedHolder, DispatchedTrigger>()
 
         for ((_, holder) in triggerableEffects) {

@@ -5,7 +5,7 @@ import com.willfp.eco.core.placeholder.StaticPlaceholder
 import com.willfp.eco.core.placeholder.context.PlaceholderContext
 import com.willfp.eco.core.placeholder.templates.SimpleInjectablePlaceholder
 
-open class NamedValue constructor(
+open class NamedValue(
     val identifiers: Collection<String>,
     value: String
 ) {
@@ -19,11 +19,11 @@ open class NamedValue constructor(
         value: Any
     ) : this(identifiers, value.toString())
 
-    open val placeholders: List<InjectablePlaceholder> = identifiers.map {
+    open val placeholders: List<InjectablePlaceholder> by lazy { identifiers.map {
         StaticPlaceholder(
             it
         ) { value }
-    }
+    } }
 }
 
 /*
@@ -64,7 +64,7 @@ internal class DynamicNumericValue(
 
         override fun hashCode(): Int {
             // Use the value of the function to force a re-calculation of the expression
-            return value.toInt() * 31 + identifier.hashCode()
+            return value.hashCode() * 31 + identifier.hashCode()
         }
 
         override fun equals(other: Any?): Boolean {
@@ -83,6 +83,6 @@ internal class DynamicNumericValue(
 }
 
 
-fun Collection<NamedValue>.mapToPlaceholders(): Array<out InjectablePlaceholder> {
-    return this.flatMap { it.placeholders }.toTypedArray()
+fun Collection<NamedValue>.mapToPlaceholders(): List<InjectablePlaceholder> {
+    return this.flatMap { it.placeholders }
 }

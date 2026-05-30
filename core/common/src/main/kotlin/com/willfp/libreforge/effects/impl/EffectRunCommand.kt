@@ -24,7 +24,7 @@ object EffectRunCommand : Effect<NoCompileData>("run_command") {
 
         val commands = config.getStrings("commands", "command")
             .map { it.replace("%player%", player?.name ?: "%player")
-            it.replace("%victim%", victim?.name ?: "")}
+                it.replace("%victim%", victim?.name ?: "")}
             .map { it.translatePlaceholders(config.toPlaceholderContext(data)) }
             .dropLastWhile { it.isEmpty() }
 

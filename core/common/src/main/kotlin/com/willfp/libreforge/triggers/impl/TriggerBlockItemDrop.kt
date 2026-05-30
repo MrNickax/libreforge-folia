@@ -7,11 +7,14 @@ import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
-import com.willfp.libreforge.triggers.event.EditableBlockDropEvent
+import com.willfp.libreforge.triggers.event.DropCause
+import com.willfp.libreforge.triggers.event.DropContext
+import com.willfp.libreforge.triggers.event.EditableDropEvent
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.block.Block
 import org.bukkit.block.Container
+import org.bukkit.block.data.BlockData
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.block.BlockDropItemEvent
@@ -44,15 +47,28 @@ object TriggerBlockItemDrop : Trigger("block_item_drop") {
             return
         }
 
-        val originalDrops = event.items.map { it.itemStack }.filterNotEmpty()
+        val brokenBlock = BrokenBlock(block, event.blockState.type, event.blockState.blockData)
 
-        val editableEvent = EditableBlockDropEvent(event)
+        val itemEntityToStack = event.items.associateWith { it.itemStack }
+        val originalDrops = itemEntityToStack.values.toList().filterNotEmpty()
+
+        val editableEvent = EditableDropEvent(
+            initialDrops = originalDrops,
+            cause = DropCause.BLOCK,
+            context = DropContext(
+                player = player,
+                block = brokenBlock,
+                tool = player.inventory.itemInMainHand
+            ),
+            dropLocation = block.location,
+            cancellable = event
+        )
 
         this.dispatch(
             player.toDispatcher(),
             TriggerData(
                 player = player,
-                block = BrokenBlock(block, event.blockState.type), // Fixes the type always being AIR
+                block = brokenBlock,
                 location = block.location,
                 event = editableEvent,
                 item = null,
@@ -60,24 +76,49 @@ object TriggerBlockItemDrop : Trigger("block_item_drop") {
             )
         )
 
-        val newDrops = editableEvent.items
+        val dropResults = editableEvent.items
 
-        for ((i, item) in event.items.withIndex()) {
-            item.itemStack = newDrops[i].item
+        val remainingDrops = editableEvent.drops
+        event.items.removeIf { item ->
+            val stack = itemEntityToStack[item] ?: return@removeIf true
+            remainingDrops.none { drop -> drop === stack }
         }
 
-        if (newDrops.sumOf { it.xp } > 0) {
+        for (item in event.items) {
+            val stack = itemEntityToStack[item] ?: continue
+            item.setItemStack(stack)
+        }
+
+        // Drops added by effects (e.g. drop_item with add_to_drops) have no backing
+        // item entity, so the loop above can't emit them. Push them through a
+        // DropQueue (telekinesis-aware). These stacks already have their modifiers
+        // applied in place by the `dropResults` read above, so we must NOT read
+        // editableEvent.items again here or modifiers would be applied twice.
+        val addedStacks = remainingDrops.filter { stack ->
+            itemEntityToStack.values.none { it === stack }
+        }
+        if (addedStacks.isNotEmpty()) {
             DropQueue(player)
                 .setLocation(block.location)
-                .addXP(newDrops.sumOf { it.xp })
+                .addItems(addedStacks)
+                .push()
+        }
+
+        val totalXP = dropResults.sumOf { it.xp }
+        if (totalXP > 0) {
+            DropQueue(player)
+                .setLocation(block.location)
+                .addXP(totalXP)
                 .push()
         }
     }
 
     private class BrokenBlock(
         private val block: Block,
-        private val type: Material
+        private val type: Material,
+        private val data: BlockData
     ): Block by block {
         override fun getType() = type
+        override fun getBlockData(): BlockData = data
     }
 }

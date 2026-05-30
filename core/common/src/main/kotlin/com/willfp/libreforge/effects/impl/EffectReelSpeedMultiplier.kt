@@ -17,9 +17,6 @@ object EffectReelSpeedMultiplier : MultiplierEffect("reel_speed_multiplier") {
             return
         }
 
-        val caught = event.caught
-        if (caught == null) return
-
         val player = event.player
 
         val multiplier = getMultiplier(player.toDispatcher())
@@ -34,10 +31,8 @@ object EffectReelSpeedMultiplier : MultiplierEffect("reel_speed_multiplier") {
             .normalize()
             .multiply(multiplier)
 
-        caught.scheduler.run(
-            plugin,
-            { caught.velocity = vector },
-            {}
-        )
+        player.scheduler.run {
+            event.caught?.velocity = vector
+        }
     }
 }

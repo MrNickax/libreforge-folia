@@ -1,19 +1,19 @@
 package com.willfp.libreforge.configs.lrcdb
 
-import com.willfp.eco.core.EcoPlugin
 import com.willfp.eco.core.command.impl.Subcommand
 import com.willfp.eco.core.commands.notifyNull
 import com.willfp.eco.core.config.ConfigType
 import com.willfp.eco.core.config.readConfig
 import com.willfp.libreforge.Plugins
 import com.willfp.libreforge.configs.onLrcdbThread
+import com.willfp.libreforge.plugin
 import org.bukkit.command.CommandSender
 import java.io.BufferedReader
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
 
-class CommandLrcdbImport(plugin: EcoPlugin) : Subcommand(
+internal object CommandLrcdbImport : Subcommand(
     plugin,
     "import",
     "libreforge.command.lrcdb",
@@ -28,19 +28,17 @@ class CommandLrcdbImport(plugin: EcoPlugin) : Subcommand(
         val id = args[0]
 
         onLrcdbThread {
-            val url = URI("https://lrcdb.auxilor.io/api/v1/getConfigByID?id=$id&isDownload=true").toURL()
+            val url = URI("https://lrcdb.auxilor.io/api/v2/configs/$id?isDownload=true").toURL()
             val connection = url.openConnection() as HttpURLConnection
             val code = connection.responseCode
 
             val isError = code in 400..599
 
-            val reader = if (isError) {
-                connection.errorStream.reader()
-            } else {
-                connection.inputStream.reader()
-            }
+            val text = (if (isError) connection.errorStream else connection.inputStream)
+                .bufferedReader()
+                .use { it.readText() }
 
-            val res = readConfig(BufferedReader(reader).readText(), ConfigType.JSON)
+            val res = readConfig(text, ConfigType.JSON)
 
             if (isError) {
                 sender.sendMessage(

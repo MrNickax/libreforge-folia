@@ -1,7 +1,6 @@
 package com.willfp.libreforge
 
 import com.github.benmanes.caffeine.cache.Caffeine
-import com.willfp.eco.core.EcoPlugin
 import com.willfp.eco.core.events.ArmorChangeEvent
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
@@ -13,13 +12,12 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerRespawnEvent
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 @Suppress("unused", "UNUSED_PARAMETER")
-class ItemRefreshListener(
-    private val plugin: EcoPlugin
-) : Listener {
+object ItemRefreshListener : Listener {
     private val inventoryClickTimeouts = Caffeine.newBuilder()
         .expireAfterWrite(
             plugin.configYml.getInt("refresh.inventory-click.timeout").toLong(),
@@ -44,12 +42,8 @@ class ItemRefreshListener(
 
     @EventHandler(priority = EventPriority.LOWEST)
     fun onPlayerJoin(event: PlayerJoinEvent) {
-        Bukkit.getServer().onlinePlayers.forEach { player ->
-            player.scheduler.run(
-                this.plugin,
-                { player.toDispatcher().refreshHolders() },
-                {}
-            )
+        Bukkit.getServer().onlinePlayers.forEach {
+            it.toDispatcher().refreshHolders()
         }
     }
 
@@ -72,11 +66,14 @@ class ItemRefreshListener(
 
         val dispatcher = player.toDispatcher()
 
-        player.scheduler.run(
-            this.plugin,
-            { dispatcher.refreshHolders() },
-            {}
-        )
+        player.scheduler.run {
+            dispatcher.refreshHolders()
+        }
+    }
+
+    @EventHandler
+    fun onRespawn(event: PlayerRespawnEvent) {
+        event.player.toDispatcher().refreshHolders()
     }
 
     @EventHandler

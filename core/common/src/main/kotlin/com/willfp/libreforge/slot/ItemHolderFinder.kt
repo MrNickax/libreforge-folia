@@ -9,7 +9,6 @@ import com.willfp.libreforge.TypedHolderProvider
 import com.willfp.libreforge.TypedProvidedHolder
 import com.willfp.libreforge.get
 import com.willfp.libreforge.ifType
-import com.willfp.libreforge.plugin
 import com.willfp.libreforge.registerRefreshFunction
 import com.willfp.libreforge.slot.impl.NumericSlotType
 import org.bukkit.entity.LivingEntity
@@ -43,11 +42,11 @@ abstract class ItemHolderFinder<T : Holder> {
     fun findHolders(entity: LivingEntity, slot: SlotType): List<TypedProvidedHolder<T>> {
         val items = slot.getItems(entity)
 
-        val holders = items.map { item ->
+        val holders = items.flatMap { item ->
             this.find(item)
                 .filter { holder -> isValidInSlot(holder, slot) }
                 .map { holder -> SlotItemProvidedHolder(holder, item, slot) }
-        }.flatten()
+        }
 
         return holders
     }

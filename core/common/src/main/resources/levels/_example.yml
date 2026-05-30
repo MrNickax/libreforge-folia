@@ -1,5 +1,5 @@
 # To use item points in your item lore / effects / conditions,
-# use these placeholders:
+# use these placeholders.yml:
 # %libreforge_item_xp_<type>% - The amount of XP the item has
 # %libreforge_item_level_<type>% - The level of the item
 # %libreforge_item_xp_required_<type>% - The amount of XP required for the next level

@@ -57,7 +57,7 @@ class TriggerData(
     /*
     This is a bodge inherited from v3, but it's the only real way to do this.
     Essentially, the player can get messed up by mutators, and that causes
-    placeholders to parse incorrectly when doing Config#get<x>FromExpression.
+    placeholders.yml to parse incorrectly when doing Config#get<x>FromExpression.
 
     It's really not very nice, but it's good enough. Just don't think about it.
      */
@@ -66,8 +66,8 @@ class TriggerData(
     /*
     This is a patch that allows for more fluent TriggerData -> DispatchedTrigger
     conversions. Essentially, it passes a reference to the original trigger's
-    placeholders so that when a DispatchedTrigger is created from a TriggerData,
-    it can inherit the placeholders from the original trigger.
+    placeholders.yml so that when a DispatchedTrigger is created from a TriggerData,
+    it can inherit the placeholders.yml from the original trigger.
      */
     internal var inheritedTriggerPlaceholders: Collection<NamedValue>? = null
 

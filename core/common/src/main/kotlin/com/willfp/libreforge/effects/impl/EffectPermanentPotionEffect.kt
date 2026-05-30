@@ -9,6 +9,7 @@ import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.effects.Identifiers
 import com.willfp.libreforge.get
 import com.willfp.libreforge.plugin
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.player.PlayerRespawnEvent
@@ -71,12 +72,15 @@ object EffectPermanentPotionEffect : Effect<NoCompileData>("permanent_potion_eff
     @EventHandler
     fun onRespawn(event: PlayerRespawnEvent) {
         val player = event.player
-        val types = getHolderData(player)
-            .values
-            .map { it.effectType }
-            .toSet()
 
-        types.forEach { refreshEffectsOfType(player, it) }
+        player.scheduler.run {
+            val types = getHolderData(player)
+                .values
+                .map { it.effectType }
+                .toSet()
+
+            types.forEach { refreshEffectsOfType(player, it) }
+        }
     }
 
     override fun onEnable(

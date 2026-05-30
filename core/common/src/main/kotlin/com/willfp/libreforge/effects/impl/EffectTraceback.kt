@@ -35,7 +35,7 @@ object EffectTraceback : Effect<NoCompileData>("traceback") {
 
         val location = times.getOrElse(index) { times.lastOrNull() } ?: return false
 
-        player.teleport(location)
+        player.teleportAsync(location)
 
         return true
     }
@@ -46,7 +46,7 @@ object EffectTraceback : Effect<NoCompileData>("traceback") {
                 player.scheduler.run(plugin, {
                     @Suppress("UNCHECKED_CAST")
                     val times = player.getMetadata(key).getOrNull(0)?.value() as? List<Location> ?: emptyList()
-                    val newTimes = (if (times.size < 29) times else times.drop(1)) + player.location
+                    val newTimes = (if (times.size < 30) times else times.drop(1)) + player.location
 
                     player.removeMetadata(key, plugin)
                     player.setMetadata(key, plugin.metadataValueFactory.create(newTimes))

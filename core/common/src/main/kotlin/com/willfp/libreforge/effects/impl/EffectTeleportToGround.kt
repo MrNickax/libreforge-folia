@@ -29,7 +29,7 @@ object EffectTeleportToGround : Effect<NoCompileData>("teleport_to_ground") {
             current = current.subtract(0.0, 1.0, 0.0)
         }
 
-        player.teleport(current)
+        player.teleportAsync(current)
 
         return true
     }

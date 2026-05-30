@@ -2,24 +2,17 @@ package com.willfp.libreforge.effects.impl
 
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.eco.core.particle.Particles
-import com.willfp.libreforge.ViolationContext
-import com.willfp.libreforge.arguments
+import com.willfp.libreforge.*
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.effects.impl.particles.ParticleAnimationBlock
 import com.willfp.libreforge.effects.impl.particles.ParticleAnimations
-import com.willfp.libreforge.getIntFromExpression
-import com.willfp.libreforge.plugin
-import com.willfp.libreforge.toFloat3
-import com.willfp.libreforge.toLocation
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
-import com.willfp.libreforge.xz
 import dev.romainguy.kotlin.math.Float2
 import dev.romainguy.kotlin.math.Float3
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import org.bukkit.Bukkit
 import org.bukkit.entity.LivingEntity
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 object EffectParticleAnimation : Effect<ParticleAnimationBlock<*>?>("particle_animation") {
@@ -98,10 +91,10 @@ object EffectParticleAnimation : Effect<ParticleAnimationBlock<*>?>("particle_an
                 }
 
                 val vectors = if (args.has("tick-multiplier")) {
-                    val mult = args.getIntFromExpression("tick-multiplier", data)
-                    val mockTicks = (tick * mult until (tick * mult) + mult)
+                    val tickMultiplier = args.getIntFromExpression("tick-multiplier", data)
+                    val mockTicks = (tick * tickMultiplier until (tick * tickMultiplier) + tickMultiplier)
 
-                    mockTicks.map { t ->
+                    mockTicks.flatMap { t ->
                         compileData.getParticleLocations(
                             t,
                             entityVector,
@@ -109,7 +102,7 @@ object EffectParticleAnimation : Effect<ParticleAnimationBlock<*>?>("particle_an
                             locationVector.copy(),
                             player
                         )
-                    }.flatten()
+                    }
                 } else {
                     compileData.getParticleLocations(
                         tick,

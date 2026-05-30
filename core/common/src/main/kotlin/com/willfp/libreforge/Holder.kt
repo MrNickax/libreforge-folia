@@ -249,7 +249,7 @@ data class HolderTemplate(
 }
 
 /**
- * A nested holder has a parent, to allow passing through placeholders.
+ * A nested holder has a parent, to allow passing through placeholders.yml.
  */
 class NestedHolder(
     private val holder: Holder,

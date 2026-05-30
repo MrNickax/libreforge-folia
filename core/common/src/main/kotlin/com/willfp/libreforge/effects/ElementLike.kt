@@ -34,7 +34,7 @@ abstract class ElementLike : ConfigurableElement {
      */
     open val shouldDelegateExecution: Boolean = false
 
-    // Inject placeholders into all config blocks.
+    // Inject placeholders.yml into all config blocks.
     private fun injectPlaceholders(placeholders: List<InjectablePlaceholder>) {
         arguments.forEach { it.config.addInjectablePlaceholder(placeholders) }
         conditions.forEach { it.config.addInjectablePlaceholder(placeholders) }
@@ -107,7 +107,7 @@ abstract class ElementLike : ConfigurableElement {
             }
         }
 
-        // Inject placeholders everywhere after mutation
+        // Inject placeholders.yml everywhere after mutation
         trigger.generatePlaceholders(data)
         injectPlaceholders(trigger.placeholders)
 

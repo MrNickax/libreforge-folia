@@ -10,7 +10,7 @@ abstract class TriggerPlaceholder(
     override val id: String
 ) : Listener, KRegistrable {
     /**
-     * Create placeholders for some [data].
+     * Create placeholders.yml for some [data].
      */
     abstract fun createPlaceholders(data: TriggerData): Collection<NamedValue>
 

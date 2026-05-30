@@ -1,7 +1,7 @@
 name: libreforge
 version: ${projectVersion}
 main: com.willfp.libreforge.LibreforgeSpigotPlugin
-api-version: 1.21.4
+api-version: 1.21.8
 authors: [ Auxilor ]
 website: willfp.com
 folia-supported: true
@@ -14,7 +14,6 @@ folia-supported: true
 
 softdepend:
   - eco
-  - AureliumSkills
   - Jobs
   - LevelledMobs
   - mcMMO
@@ -27,6 +26,7 @@ softdepend:
   - Terra
   - TerraformGenerator
   - ModelEngine
+  - BetterModel
   - MythicMobs
   - AxEnvoy
   - AxTrade
@@ -62,6 +62,7 @@ permissions:
       libreforge.command.reload: true
       libreforge.command.debug: true
       libreforge.command.trigger: true
+      libreforge.command.getitemdata: true
       libreforge.command.points.*: true
   libreforge.command.points.*:
     description: All points commands
@@ -85,6 +86,9 @@ permissions:
     default: op
   libreforge.command.trigger:
     description: Allows the use of /libreforge trigger
+    default: op
+  libreforge.command.getitemdata:
+    description: Allows the use of /libreforge getitemdata
     default: op
   libreforge.command.points:
     description: Allows the use of /libreforge points

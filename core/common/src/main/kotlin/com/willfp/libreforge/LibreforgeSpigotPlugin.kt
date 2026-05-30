@@ -1,28 +1,39 @@
 package com.willfp.libreforge
 
+import com.willfp.eco.core.Eco
 import com.willfp.eco.core.EcoPlugin
 import com.willfp.eco.core.Prerequisite
+import com.willfp.eco.core.bstats.EcoMetricsChart
 import com.willfp.eco.core.command.impl.PluginCommand
 import com.willfp.eco.core.display.DisplayModule
 import com.willfp.eco.core.integrations.IntegrationLoader
 import com.willfp.eco.core.integrations.afk.AFKManager
+import com.willfp.eco.core.blocks.Blocks
+import com.willfp.eco.core.entities.Entities
 import com.willfp.eco.core.items.Items
 import com.willfp.eco.util.ClassUtils
 import com.willfp.libreforge.commands.CommandLibreforge
+import com.willfp.libreforge.conditions.Conditions
+import com.willfp.libreforge.commands.custom.CustomCommands
 import com.willfp.libreforge.configs.ChainsYml
+import com.willfp.libreforge.configs.CommandsYml
+import com.willfp.libreforge.configs.PlaceholdersYml
 import com.willfp.libreforge.configs.TagsYml
 import com.willfp.libreforge.configs.lrcdb.CommandLrcdb
 import com.willfp.libreforge.display.ItemFlagDisplay
 import com.willfp.libreforge.effects.Effects
 import com.willfp.libreforge.effects.arguments.custom.CustomEffectArguments
 import com.willfp.libreforge.effects.impl.bossbar.BossBarProgressPlaceholder
+import com.willfp.libreforge.filters.Filters
 import com.willfp.libreforge.integrations.auraskills.AuraSkillsIntegration
-import com.willfp.libreforge.integrations.aureliumskills.AureliumSkillsIntegration
 import com.willfp.libreforge.integrations.axplugins.axenvoy.AxEnvoyIntegration
 import com.willfp.libreforge.integrations.axplugins.axtrade.AxTradeIntegration
+import com.willfp.libreforge.integrations.bettermodel.BetterModelIntegration
 import com.willfp.libreforge.integrations.citizens.CitizensIntegration
-import com.willfp.libreforge.integrations.custombiomes.impl.CustomBiomesTerra
-import com.willfp.libreforge.integrations.custombiomes.impl.CustomBiomesTerraformGenerator
+import com.willfp.libreforge.integrations.custom_blocks.nexo.NexoIntegration
+import com.willfp.libreforge.integrations.custom_blocks.oraxen.OraxenIntegration
+import com.willfp.libreforge.integrations.terra.TerraIntegration
+import com.willfp.libreforge.integrations.terraformgenerator.TerraformGeneratorIntegration
 import com.willfp.libreforge.integrations.edprisoncore.EdPrisonCoreIntegration
 import com.willfp.libreforge.integrations.fancynpcs.FancyNPCsIntegration
 import com.willfp.libreforge.integrations.huskintegration.huskclaims.HuskClaimsIntegration
@@ -36,6 +47,7 @@ import com.willfp.libreforge.integrations.mythicmobs.MythicMobsIntegration
 import com.willfp.libreforge.integrations.paper.PaperIntegration
 import com.willfp.libreforge.integrations.purpur.PurpurIntegration
 import com.willfp.libreforge.integrations.scyther.ScytherIntegration
+import com.willfp.libreforge.integrations.shopkeepers.ShopkeepersIntegration
 import com.willfp.libreforge.integrations.tab.TabIntegration
 import com.willfp.libreforge.integrations.tmmobcoins.TMMobcoinsIntegration
 import com.willfp.libreforge.integrations.ultimatemobcoins.UltimateMobCoinsIntegration
@@ -43,8 +55,10 @@ import com.willfp.libreforge.integrations.vault.VaultIntegration
 import com.willfp.libreforge.integrations.votifier.VotifierIntegration
 import com.willfp.libreforge.integrations.worldguard.WorldGuardIntegration
 import com.willfp.libreforge.integrations.xiaomomiplugins.customcrops.CustomCropsIntegration
+import com.willfp.libreforge.integrations.arsmagica.pyrofishingpro.PyroFishingProIntegration
 import com.willfp.libreforge.integrations.xiaomomiplugins.customfishing.CustomFishingIntegration
 import com.willfp.libreforge.levels.LevelTypes
+import com.willfp.libreforge.mutators.Mutators
 import com.willfp.libreforge.levels.placeholder.ItemDataPlaceholder
 import com.willfp.libreforge.levels.placeholder.ItemLevelPlaceholder
 import com.willfp.libreforge.levels.placeholder.ItemPointsPlaceholder
@@ -52,8 +66,11 @@ import com.willfp.libreforge.levels.placeholder.ItemProgressPlaceholder
 import com.willfp.libreforge.levels.placeholder.ItemXPPlaceholder
 import com.willfp.libreforge.levels.placeholder.ItemXPRequiredPlaceholder
 import com.willfp.libreforge.placeholders.CustomPlaceholders
+import com.willfp.libreforge.tags.CustomBlockTag
+import com.willfp.libreforge.tags.CustomEntityTag
 import com.willfp.libreforge.tags.CustomTag
 import com.willfp.libreforge.triggers.DispatchedTriggerFactory
+import com.willfp.libreforge.triggers.Triggers
 import org.bukkit.Bukkit
 import org.bukkit.entity.LivingEntity
 import org.bukkit.event.Listener
@@ -64,6 +81,8 @@ internal lateinit var plugin: LibreforgeSpigotPlugin
 class LibreforgeSpigotPlugin : EcoPlugin() {
     val chainsYml = ChainsYml(this)
     val tagsYml = TagsYml(this)
+    val placeholdersYml = PlaceholdersYml(this)
+    val commandsYml = CommandsYml(this)
 
     val dispatchedTriggerFactory = DispatchedTriggerFactory(this)
 
@@ -75,6 +94,9 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
     )
 
     private val displayModule = ItemFlagDisplay(this)
+
+    private var entityRefreshInterval = 20L
+    private var skipAFKPlayers = false
 
     init {
         plugin = this
@@ -123,6 +145,9 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
     }
 
     override fun handleReload() {
+        entityRefreshInterval = configYml.getInt("refresh.entities.interval").toLong()
+        skipAFKPlayers = configYml.getBool("refresh.players.skip-afk-players")
+
         for (config in chainsYml.getSubsections("chains")) {
             Effects.register(
                 config.getString("id"),
@@ -135,10 +160,22 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
 
         for (config in tagsYml.getSubsections("tags")) {
             Items.registerTag(CustomTag(config, this))
+            Blocks.registerTag(CustomBlockTag(config, this))
+            Entities.registerTag(CustomEntityTag(config, this))
         }
 
-        for (customPlaceholder in this.configYml.getSubsections("placeholders")) {
+        for (customPlaceholder in this.placeholdersYml.getSubsections("placeholders")) {
             CustomPlaceholders.load(customPlaceholder, this)
+        }
+
+        Eco.get().beginCommandBatch()
+        try {
+            CustomCommands.clearAndUnregister()
+            for (config in commandsYml.getSubsections("commands")) {
+                CustomCommands.load(config, this)
+            }
+        } finally {
+            Eco.get().endCommandBatch()
         }
 
         for (category in configCategories) {
@@ -147,65 +184,48 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
 
         displayModule.reload()
 
+        clearAllHolderCaches()
+
         hasLoaded = true
     }
 
     override fun createTasks() {
         dispatchedTriggerFactory.startTicking()
 
-        // Poll for changes
-        val skipAFKPlayers = configYml.getBool("refresh.players.skip-afk-players")
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
-            for (player in Bukkit.getOnlinePlayers()) {
-                if (skipAFKPlayers && AFKManager.isAfk(player)) {
-                    continue
-                }
-
-                player.scheduler.run(
-                    plugin,
-                    { player.toDispatcher().refreshHolders() },
-                    {}
-                )
-            }
-        }, 20L, 20L)
+            PlayerPollTask().run()
+        }, 20L, 1L)
 
         if (configYml.getBool("refresh.entities.enabled")) {
             /*
-            Poll for changes in entities
-            Each world is offset by 3 ticks to prevent lag spikes
+            Poll for condition changes in entities.
+            Each world is offset by 3 ticks to prevent lag spikes.
              */
             var currentOffset = 30L
             for (world in Bukkit.getWorlds()) {
-                val initialDelay = currentOffset
-                val period = configYml.getInt("refresh.entities.interval").toLong()
-
                 Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
                     for (entity in world.entities) {
                         if (entity is LivingEntity) {
-                            entity.scheduler.run(
-                                plugin,
-                                { entity.toDispatcher().refreshHolders() },
-                                {}
-                            )
+                            entity.toDispatcher().pollEffects()
                         }
                     }
-                }, initialDelay, period)
+                }, currentOffset, configYml.getInt("refresh.entities.interval").toLong())
 
                 currentOffset += 3
             }
         }
 
-        // Poll for changes in global holders
+        // Poll for condition changes in global holders
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
-            GlobalDispatcher.refreshHolders()
+            GlobalDispatcher.pollEffects()
         }, 25L, 20L)
     }
 
     override fun loadListeners(): List<Listener> {
         val listeners = mutableListOf(
             EffectDataFixer,
-            ItemRefreshListener(this),
-            EntityRefreshListener(this)
+            ItemRefreshListener,
+            EntityRefreshListener
         )
 
         if (Prerequisite.HAS_PAPER.isMet) {
@@ -218,38 +238,51 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
     override fun loadIntegrationLoaders(): List<IntegrationLoader> {
         return listOf(
             IntegrationLoader("AuraSkills") { AuraSkillsIntegration.load(this) },
-            IntegrationLoader("AureliumSkills") { AureliumSkillsIntegration.load(this) },
             IntegrationLoader("Jobs") { JobsIntegration.load(this) },
             IntegrationLoader("LevelledMobs") { LevelledMobsIntegration.load(this) },
             IntegrationLoader("mcMMO") { McMMOIntegration.load(this) },
             IntegrationLoader("Citizens") { CitizensIntegration.load(this) },
             IntegrationLoader("Scyther") { ScytherIntegration.load(this) },
+            IntegrationLoader("Shopkeepers") { ShopkeepersIntegration.load(this) },
             IntegrationLoader("TMMobcoins") { TMMobcoinsIntegration.load(this) },
             IntegrationLoader("Vault") { VaultIntegration.load(this) },
             IntegrationLoader("WorldGuard") { WorldGuardIntegration.load(this) },
             IntegrationLoader("TAB") { TabIntegration.load(this) },
-            IntegrationLoader("Terra") { CustomBiomesTerra.load(this) },
-            IntegrationLoader("TerraformGenerator") { CustomBiomesTerraformGenerator.load(this) },
+            IntegrationLoader("Terra") { TerraIntegration.load(this) },
+            IntegrationLoader("TerraformGenerator") { TerraformGeneratorIntegration.load(this) },
             IntegrationLoader("AxEnvoy") { AxEnvoyIntegration.load(this) },
             IntegrationLoader("AxTrade") { AxTradeIntegration.load(this) },
             IntegrationLoader("Votifier") { VotifierIntegration.load(this) },
             IntegrationLoader("ModelEngine") { ModelEngineIntegration.load(this) },
+            IntegrationLoader("BetterModel") { BetterModelIntegration.load(this) },
             IntegrationLoader("FancyNpcs") { FancyNPCsIntegration.load(this) },
             IntegrationLoader("UltimateMobCoins") { UltimateMobCoinsIntegration.load(this) },
             IntegrationLoader("HuskTowns") { HuskTownsIntegration.load(this) },
             IntegrationLoader("HuskClaims") { HuskClaimsIntegration.load(this) },
             IntegrationLoader("CustomCrops") { CustomCropsIntegration.load(this) },
             IntegrationLoader("CustomFishing") { CustomFishingIntegration.load(this) },
+            IntegrationLoader("PyroFishingPro") { PyroFishingProIntegration.load(this) },
             IntegrationLoader("Lands") { LandsIntegration.load(this) },
             IntegrationLoader("EdPrison") { EdPrisonCoreIntegration.load(this) },
-            IntegrationLoader("MythicMobs") { MythicMobsIntegration.load(this) }
+            IntegrationLoader("MythicMobs") { MythicMobsIntegration.load(this) },
+            IntegrationLoader("Nexo") { NexoIntegration.load(this) },
+            IntegrationLoader("Oraxen") { OraxenIntegration.load(this)}
         )
     }
 
+    override fun getCustomCharts() = listOf(
+        EcoMetricsChart.SingleLine("total_conditions") { Conditions.values().size },
+        EcoMetricsChart.SingleLine("total_effects") { Effects.values().size },
+        EcoMetricsChart.SingleLine("total_triggers") { Triggers.values().size },
+        EcoMetricsChart.SingleLine("total_filters") { Filters.values().size },
+        EcoMetricsChart.SingleLine("total_mutators") { Mutators.values().size },
+        EcoMetricsChart.SingleLine("loaded_libreforge_plugins") { Plugins.values().size }
+    )
+
     override fun loadPluginCommands(): List<PluginCommand> {
         return listOf(
-            CommandLrcdb(this),
-            CommandLibreforge(this)
+            CommandLrcdb,
+            CommandLibreforge
         )
     }
 
@@ -257,6 +290,20 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
         return listOf(
             displayModule
         )
+    }
+
+    private inner class PlayerPollTask : Runnable {
+        private var slot = 0
+
+        override fun run() {
+            val currentSlot = slot
+            slot = (slot + 1) % 20
+            for (player in Bukkit.getOnlinePlayers()) {
+                if ((player.uniqueId.leastSignificantBits.toInt() and Int.MAX_VALUE) % 20 != currentSlot) continue
+                if (skipAFKPlayers && AFKManager.isAfk(player)) continue
+                player.toDispatcher().pollEffects()
+            }
+        }
     }
 
     /**

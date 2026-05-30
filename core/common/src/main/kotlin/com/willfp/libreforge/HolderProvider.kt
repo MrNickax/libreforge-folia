@@ -6,7 +6,6 @@ import com.willfp.eco.core.map.listMap
 import com.willfp.libreforge.effects.EffectBlock
 import com.willfp.libreforge.slot.ItemHolderFinder
 import org.bukkit.Bukkit
-import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.HandlerList
@@ -31,6 +30,12 @@ interface TypedHolderProvider<T : Holder> : HolderProvider {
     override fun provide(dispatcher: Dispatcher<*>): Collection<TypedProvidedHolder<T>>
 }
 
+@Deprecated(
+    "HolderProvideEvent now only fires when the holder set changes, not on every refresh. " +
+            "Use HolderEnableEvent and HolderDisableEvent to react to holder additions and removals. " +
+            "This event will be removed in a future version.",
+    level = DeprecationLevel.WARNING
+)
 class HolderProvideEvent(
     val dispatcher: Dispatcher<*>,
     val holders: Collection<ProvidedHolder>
@@ -111,25 +116,6 @@ private val providers = mutableListOf<HolderProvider>()
 fun registerHolderProvider(provider: HolderProvider) = providers.add(provider)
 
 /**
- * Register a new holder provider.
- */
-@Deprecated(
-    "Use registerSpecificHolderProvider<Player> instead",
-    ReplaceWith("registerSpecificHolderProvider<Player>(provider)"),
-    DeprecationLevel.ERROR
-)
-fun registerHolderProvider(provider: (Player) -> Collection<ProvidedHolder>) =
-    registerHolderProvider(object : HolderProvider {
-        override fun provide(dispatcher: Dispatcher<*>): Collection<ProvidedHolder> {
-            dispatcher.ifType<Player> {
-                return provider(it)
-            }
-
-            return emptyList()
-        }
-    })
-
-/**
  * Register a new holder provider for all possible dispatchers.
  */
 fun registerGenericHolderProvider(provider: (Dispatcher<*>) -> Collection<ProvidedHolder>) =
@@ -161,19 +147,6 @@ private val refreshFunctions = mutableListOf<(Dispatcher<*>) -> Unit>()
  */
 fun registerRefreshFunction(function: (Dispatcher<*>) -> Unit) {
     refreshFunctions += function
-}
-
-@Deprecated(
-    "Use registerSpecificRefreshFunction<Player> instead",
-    ReplaceWith("registerSpecificRefreshFunction<Player>(function)"),
-    DeprecationLevel.ERROR
-)
-fun registerPlayerRefreshFunction(function: (Player) -> Unit) {
-    refreshFunctions += {
-        it.get<Player>()?.let { player ->
-            function(player)
-        }
-    }
 }
 
 /**
@@ -214,19 +187,25 @@ fun Dispatcher<*>.refreshHolders() {
  * Forcibly refresh holders, ignoring cooldown.
  */
 fun Dispatcher<*>.forceRefreshHolders() {
-
     refreshFunctions.forEach { it(this) }
-    this.updateHolders()
+    // Pre-populate cache so updateEffects() gets a hit instead of a miss
+    holderCache.put(this.uuid, this.computeHolders())
     this.updateEffects()
 }
 
-@Deprecated(
-    "Use refreshHolders on a dispatcher instead",
-    ReplaceWith("toDispatcher().refreshHolders()"),
-    DeprecationLevel.ERROR
-)
-fun Player.refreshHolders() =
-    this.toDispatcher().refreshHolders()
+/**
+ * Re-evaluate active effects against the current (possibly cached) holders.
+ *
+ * Used by the periodic polling task: holders are presumed stable between events,
+ * so we skip the provider rescan and only re-check conditions. The holder cache
+ * still expires naturally (4 s TTL), so providers are still rescanned periodically.
+ * Event-based callers (equipment change, inventory click, etc.) use [refreshHolders]
+ * or [forceRefreshHolders] which explicitly invalidate the cache.
+ */
+internal fun Dispatcher<*>.pollEffects() {
+    refreshFunctions.forEach { it(this) }
+    this.updateEffects()
+}
 
 private val holderPlaceholderProviders = mutableListOf<(ProvidedHolder, Dispatcher<*>) -> Collection<NamedValue>>()
 
@@ -269,75 +248,73 @@ inline fun <reified T : Holder, reified R> registerSpecificHolderPlaceholderProv
  * Generate placeholders for a holder.
  */
 fun ProvidedHolder.generatePlaceholders(dispatcher: Dispatcher<*>): List<NamedValue> {
-    return holderPlaceholderProviders.flatMap { it(this, dispatcher) }
+    return buildList {
+        for (provider in holderPlaceholderProviders) {
+            addAll(provider(this@generatePlaceholders, dispatcher))
+        }
+    }
 }
 
-private val previousHolders = mutableMapOf<UUID, Collection<ProvidedHolder>>()
+private val previousHolders: com.github.benmanes.caffeine.cache.Cache<UUID, Collection<ProvidedHolder>> =
+    Caffeine.newBuilder()
+        .expireAfterAccess(30, TimeUnit.SECONDS)
+        .build()
 
 private val holderCache = Caffeine.newBuilder()
     .expireAfterWrite(4, TimeUnit.SECONDS)
     .build<UUID, Collection<ProvidedHolder>>()
 
-
-fun Dispatcher<*>.getHolders(): Collection<ProvidedHolder> {
-    val cached = holderCache.getIfPresent(this.uuid)
-    if (cached != null) return cached
-
+private fun Dispatcher<*>.computeHolders(): Collection<ProvidedHolder> {
     if (this is EntityDispatcher && this.dispatcher !is Player && !plugin.configYml.getBool("refresh.entities.enabled")) {
         return emptyList()
     }
 
-    if (this is EntityDispatcher && this.dispatcher is Player && !Bukkit.isOwnedByCurrentRegion(this.dispatcher)) {
-        throw IllegalStateException("Dispatcher is not owned by the current region")
-    }
-
     val holders = providers.flatMap { it.provide(this) }
 
-    Bukkit.getPluginManager().callEvent(HolderProvideEvent(this, holders))
+    val old = previousHolders.getIfPresent(this.uuid) ?: emptyList()
 
-    val old = previousHolders[this.uuid] ?: emptyList()
+    val newByID = holders.associateBy { it.holder.id }
+    val oldByID = old.associateBy { it.holder.id }
 
-    val newID = holders.map { it.holder.id }
-    val oldID = old.map { it.holder.id }
-
-    val added = newID without oldID
-    val removed = oldID without newID
-
-    val newByID = holders.associateBy { it.holder.id }.toNotNullMap()
-    val oldByID = old.associateBy { it.holder.id }.toNotNullMap()
+    val added = newByID.keys - oldByID.keys
+    val removed = oldByID.keys - newByID.keys
 
     for (id in added) {
         Bukkit.getPluginManager().callEvent(
-            HolderEnableEvent(this, newByID[id], holders)
+            HolderEnableEvent(this, newByID[id]!!, holders)
         )
     }
 
     for (id in removed) {
         Bukkit.getPluginManager().callEvent(
-            HolderDisableEvent(this, oldByID[id], old)
+            HolderDisableEvent(this, oldByID[id]!!, old)
         )
     }
 
-    previousHolders[this.uuid] = holders
-    holderCache.put(this.uuid, holders)
+    previousHolders.put(this.uuid, holders)
+
+    if (added.isNotEmpty() || removed.isNotEmpty()) {
+        @Suppress("DEPRECATION")
+        Bukkit.getPluginManager().callEvent(
+            HolderProvideEvent(this, holders)
+        )
+    }
 
     return holders
 }
 
 /**
+ * The holders.
+ */
+val Dispatcher<*>.holders: Collection<ProvidedHolder>
+    get() = holderCache.get(this.uuid) { computeHolders() }
+
+/**
  * Get holders of a specific type.
  */
 inline fun <reified T : Holder> Dispatcher<*>.getHoldersOfType(): Collection<T> {
-    return this.getHolders().mapNotNull { it.holder as? T }
+    return this.holders.mapNotNull { it.holder as? T }
 }
-
-@Deprecated(
-    "Use a dispatcher instead of a player",
-    ReplaceWith("toDispatcher().holders"),
-    DeprecationLevel.ERROR
-)
-val Player.holders: Collection<ProvidedHolder>
-    get() = this.toDispatcher().getHolders()
 
 /**
  * Invalidate holder cache to force rescan.
@@ -346,17 +323,14 @@ fun Dispatcher<*>.updateHolders() {
     holderCache.invalidate(this.uuid)
 }
 
-@Deprecated(
-    "Use updateHolders on a dispatcher instead",
-    ReplaceWith("toDispatcher().updateHolders()"),
-    DeprecationLevel.ERROR
-)
-fun Player.updateHolders() =
-    this.toDispatcher().updateHolders()
-
 internal fun Dispatcher<*>.purgePreviousHolders() {
-    previousHolders.remove(this.uuid)
+    previousHolders.invalidate(this.uuid)
     previousStates.remove(this.uuid)
+}
+
+internal fun clearAllHolderCaches() {
+    holderCache.invalidateAll()
+    previousHolders.invalidateAll()
 }
 
 // Effects that were active on previous update
@@ -386,41 +360,17 @@ fun Collection<ProvidedHolder>.getProvidedActiveEffects(dispatcher: Dispatcher<*
 fun ProvidedHolder.getActiveEffects(dispatcher: Dispatcher<*>) =
     this.holder.effects.filter { it.conditions.areMet(dispatcher, this) }.toSet()
 
-@Deprecated(
-    "Use getActiveEffects on a dispatcher instead",
-    ReplaceWith("getActiveEffects(player.toDispatcher())"),
-    DeprecationLevel.ERROR
-)
-fun ProvidedHolder.getActiveEffects(player: Player) =
-    getActiveEffects(player.toDispatcher())
-
 /**
  * Recalculate active effects.
  */
 fun Dispatcher<*>.calculateActiveEffects() =
-    this.getHolders().getProvidedActiveEffects(this)
-
-@Deprecated(
-    "Use calculateActiveEffects on a dispatcher instead",
-    ReplaceWith("toDispatcher().calculateActiveEffects()"),
-    DeprecationLevel.ERROR
-)
-fun Player.calculateActiveEffects() =
-    this.toDispatcher().calculateActiveEffects()
+    this.holders.getProvidedActiveEffects(this)
 
 /**
  * The active effects.
  */
 val Dispatcher<*>.activeEffects: List<EffectBlock>
     get() = previousStates[this.uuid].map { it.effect }
-
-@Deprecated(
-    "Use activeEffects on a dispatcher instead",
-    ReplaceWith("toDispatcher().activeEffects"),
-    DeprecationLevel.ERROR
-)
-val Player.activeEffects: List<EffectBlock>
-    get() = this.toDispatcher().activeEffects
 
 /**
  * The active effects mapped to the holder that provided them.
@@ -435,12 +385,11 @@ fun Dispatcher<*>.updateEffects() {
     val before = this.providedActiveEffects
     val after = this.calculateActiveEffects()
 
-    previousStates[this.uuid] = after.sorted()
+    previousStates[this.uuid] = after
 
     // Permanent effects also have a run order, so we need to sort them.
     val added = (after without before).sorted()
     val removed = (before without after).sorted()
-    val toReload = (after without added).sorted()
 
     for ((effect, holder) in removed) {
         effect.disable(this, holder)
@@ -453,6 +402,7 @@ fun Dispatcher<*>.updateEffects() {
     // Reloading is now done by disabling all, then enabling all. Effect#reload is deprecated.
     // Since permanent effects are not allowed in chains, they are always done in the correct
     // order as mixing weights is not a concern.
+    val toReload = (after without added).sorted()
 
     for ((effect, holder) in toReload) {
         effect.disable(this, holder, isReload = true)
@@ -463,13 +413,6 @@ fun Dispatcher<*>.updateEffects() {
     }
 }
 
-@Deprecated(
-    "Use updateEffects on a dispatcher instead",
-    ReplaceWith("toDispatcher().updateEffects()"),
-    DeprecationLevel.ERROR
-)
-fun Player.updateEffects() =
-    this.toDispatcher().updateEffects()
 
 /**
  * Removes all elements from the given [other] list that are contained in this list.
@@ -477,9 +420,17 @@ fun Player.updateEffects() =
  * Elements are only removed as many times as they are present.
  */
 inline infix fun <reified T> Collection<T>.without(other: Collection<T>): List<T> {
-    return other.toMutableList().let { mutableOther ->
-        filter { element ->
-            !mutableOther.remove(element)
+    val counts = HashMap<T, Int>(other.size)
+    for (element in other) {
+        counts[element] = (counts[element] ?: 0) + 1
+    }
+    return filter { element ->
+        val count = counts[element]
+        if (count != null && count > 0) {
+            counts[element] = count - 1
+            false
+        } else {
+            true
         }
     }
 }

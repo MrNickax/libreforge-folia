@@ -5,6 +5,8 @@ import com.willfp.libreforge.mutators.MutatorList
 import com.willfp.libreforge.triggers.impl.TriggerAltClick
 import com.willfp.libreforge.triggers.impl.TriggerBite
 import com.willfp.libreforge.triggers.impl.TriggerBlockItemDrop
+import com.willfp.libreforge.triggers.impl.TriggerBlockXpDrop
+import com.willfp.libreforge.triggers.impl.TriggerEntityXpDrop
 import com.willfp.libreforge.triggers.impl.TriggerBoneMealCrop
 import com.willfp.libreforge.triggers.impl.TriggerBowAttack
 import com.willfp.libreforge.triggers.impl.TriggerBreed
@@ -12,6 +14,8 @@ import com.willfp.libreforge.triggers.impl.TriggerBrew
 import com.willfp.libreforge.triggers.impl.TriggerBrewIngredient
 import com.willfp.libreforge.triggers.impl.TriggerCastRod
 import com.willfp.libreforge.triggers.impl.TriggerCatchEntity
+import com.willfp.libreforge.triggers.impl.TriggerCauldronLevelChange
+import com.willfp.libreforge.triggers.impl.TriggerChangeBiome
 import com.willfp.libreforge.triggers.impl.TriggerCatchFish
 import com.willfp.libreforge.triggers.impl.TriggerCatchFishFail
 import com.willfp.libreforge.triggers.impl.TriggerChangeArmor
@@ -32,6 +36,8 @@ import com.willfp.libreforge.triggers.impl.TriggerDropItem
 import com.willfp.libreforge.triggers.impl.TriggerEmptyBucket
 import com.willfp.libreforge.triggers.impl.TriggerEnable
 import com.willfp.libreforge.triggers.impl.TriggerEnchantItem
+import com.willfp.libreforge.triggers.impl.TriggerEnterVehicle
+import com.willfp.libreforge.triggers.impl.TriggerExitVehicle
 import com.willfp.libreforge.triggers.impl.TriggerEnterBed
 import com.willfp.libreforge.triggers.impl.TriggerEntityBreakDoor
 import com.willfp.libreforge.triggers.impl.TriggerEntityCatchFireFromBlock
@@ -67,8 +73,10 @@ import com.willfp.libreforge.triggers.impl.TriggerLoseHunger
 import com.willfp.libreforge.triggers.impl.TriggerLosePotionEffect
 import com.willfp.libreforge.triggers.impl.TriggerMeleeAttack
 import com.willfp.libreforge.triggers.impl.TriggerMineBlock
+import com.willfp.libreforge.triggers.impl.TriggerMineBlockCascade
 import com.willfp.libreforge.triggers.impl.TriggerMineBlockProgress
 import com.willfp.libreforge.triggers.impl.TriggerMove
+import com.willfp.libreforge.triggers.impl.TriggerNoteBlockPlay
 import com.willfp.libreforge.triggers.impl.TriggerPickUpItem
 import com.willfp.libreforge.triggers.impl.TriggerPlaceBlock
 import com.willfp.libreforge.triggers.impl.TriggerPotionEffect
@@ -76,10 +84,12 @@ import com.willfp.libreforge.triggers.impl.TriggerProjectileHit
 import com.willfp.libreforge.triggers.impl.TriggerProjectileLaunch
 import com.willfp.libreforge.triggers.impl.TriggerReelIn
 import com.willfp.libreforge.triggers.impl.TriggerRespawn
+import com.willfp.libreforge.triggers.impl.TriggerResurrect
 import com.willfp.libreforge.triggers.impl.TriggerRingBell
 import com.willfp.libreforge.triggers.impl.TriggerRunCommand
 import com.willfp.libreforge.triggers.impl.TriggerSellItem
 import com.willfp.libreforge.triggers.impl.TriggerSendMessage
+import com.willfp.libreforge.triggers.impl.TriggerShear
 import com.willfp.libreforge.triggers.impl.TriggerShearEntity
 import com.willfp.libreforge.triggers.impl.TriggerShieldBlock
 import com.willfp.libreforge.triggers.impl.TriggerShootBow
@@ -147,6 +157,8 @@ object Triggers : Registry<Trigger>() {
         register(TriggerAltClick)
         register(TriggerBite)
         register(TriggerBlockItemDrop)
+        register(TriggerBlockXpDrop)
+        register(TriggerEntityXpDrop)
         register(TriggerBoneMealCrop)
         register(TriggerBowAttack)
         register(TriggerBreed)
@@ -154,6 +166,8 @@ object Triggers : Registry<Trigger>() {
         register(TriggerBrewIngredient)
         register(TriggerCastRod)
         register(TriggerCatchEntity)
+        register(TriggerCauldronLevelChange)
+        register(TriggerChangeBiome)
         register(TriggerCatchFish)
         register(TriggerCatchFishFail)
         register(TriggerChangeArmor)
@@ -173,6 +187,8 @@ object Triggers : Registry<Trigger>() {
         register(TriggerDropItem)
         register(TriggerEnable)
         register(TriggerEmptyBucket)
+        register(TriggerEnterVehicle)
+        register(TriggerExitVehicle)
         register(TriggerEnchantItem)
         register(TriggerEnterBed)
         register(TriggerEntityBreakDoor)
@@ -206,8 +222,10 @@ object Triggers : Registry<Trigger>() {
         register(TriggerLosePotionEffect)
         register(TriggerMeleeAttack)
         register(TriggerMineBlock)
+        register(TriggerMineBlockCascade)
         register(TriggerMineBlockProgress)
         register(TriggerMove)
+        register(TriggerNoteBlockPlay)
         register(TriggerPickUpItem)
         register(TriggerPlaceBlock)
         register(TriggerPotionEffect)
@@ -215,18 +233,19 @@ object Triggers : Registry<Trigger>() {
         register(TriggerProjectileLaunch)
         register(TriggerReelIn)
         register(TriggerRespawn)
+        register(TriggerResurrect)
         register(TriggerRingBell)
         register(TriggerRunCommand)
         register(TriggerSellItem)
         register(TriggerSendMessage)
+        register(TriggerShear)
+        @Suppress("DEPRECATION")
         register(TriggerShearEntity)
         register(TriggerShieldBlock)
         register(TriggerShootBow)
         register(TriggerSmithItem)
         register(TriggerSmelt)
         register(TriggerSwapHands)
-        register(TriggerTakeDamage)
-        register(TriggerTakeEntityDamage)
         register(TriggerTameAnimal)
         register(TriggerTeleport)
         register(TriggerToggleFlight)
@@ -234,5 +253,8 @@ object Triggers : Registry<Trigger>() {
         register(TriggerToggleSprint)
         register(TriggerUnleashEntity)
         register(TriggerWinRaid)
+        register(TriggerTakeDamage)
+        register(TriggerTakeEntityDamage)
+        TriggerTakeDamage.notifyOfEntityDamageChange()
     }
 }
