@@ -64,11 +64,17 @@ object ItemRefreshListener : Listener {
             }
         }
 
+
         val dispatcher = player.toDispatcher()
 
-        player.scheduler.run {
-            dispatcher.refreshHolders()
-        }
+        player.scheduler.runDelayed(
+            plugin,
+            {
+                dispatcher.refreshHolders()
+            },
+            {},
+            1L
+        )
     }
 
     @EventHandler
