@@ -68,8 +68,9 @@ object EffectGlowNearbyBlocks : Effect<NoCompileData>("glow_nearby_blocks") {
                     )
 
                     val color = colors[block.type] ?: continue
+                    val team = TeamUtils.fromChatColor(color) as Team? ?: continue
 
-                    toReveal[block] = TeamUtils.fromChatColor(color)
+                    toReveal[block] = team
                 }
             }
         }
