@@ -301,7 +301,14 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
             for (player in Bukkit.getOnlinePlayers()) {
                 if ((player.uniqueId.leastSignificantBits.toInt() and Int.MAX_VALUE) % 20 != currentSlot) continue
                 if (skipAFKPlayers && AFKManager.isAfk(player)) continue
-                player.toDispatcher().pollEffects()
+
+                player.scheduler.run(
+                    this@LibreforgeSpigotPlugin,
+                    {
+                        player.toDispatcher().pollEffects()
+                    },
+                    {}
+                )
             }
         }
     }

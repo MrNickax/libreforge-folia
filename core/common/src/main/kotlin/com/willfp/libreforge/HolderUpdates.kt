@@ -42,8 +42,14 @@ object ItemRefreshListener : Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     fun onPlayerJoin(event: PlayerJoinEvent) {
-        Bukkit.getServer().onlinePlayers.forEach {
-            it.toDispatcher().refreshHolders()
+        for (player in Bukkit.getServer().onlinePlayers) {
+            player.scheduler.run(
+                plugin,
+                {
+                    player.toDispatcher().refreshHolders()
+                },
+                {}
+            )
         }
     }
 
