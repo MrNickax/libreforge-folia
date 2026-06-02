@@ -10,6 +10,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.HandlerList
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 
@@ -334,7 +335,8 @@ internal fun clearAllHolderCaches() {
 }
 
 // Effects that were active on previous update
-private val previousStates = listMap<UUID, ProvidedEffectBlock>() // Optimisation.
+private val previousStates = ConcurrentHashMap<UUID, List<ProvidedEffectBlock>>()
+private val updateEffectLocks = ConcurrentHashMap<UUID, Any>()
 
 /**
  * Get active effects for a [dispatcher] from holders mapped to the holder
@@ -370,46 +372,50 @@ fun Dispatcher<*>.calculateActiveEffects() =
  * The active effects.
  */
 val Dispatcher<*>.activeEffects: List<EffectBlock>
-    get() = previousStates[this.uuid].map { it.effect }
+    get() = previousStates[this.uuid].orEmpty().map { it.effect }
 
 /**
  * The active effects mapped to the holder that provided them.
  */
 val Dispatcher<*>.providedActiveEffects: List<ProvidedEffectBlock>
-    get() = previousStates[this.uuid]
+    get() = previousStates[this.uuid].orEmpty()
 
 /**
  * Update the active effects.
  */
 fun Dispatcher<*>.updateEffects() {
-    val before = this.providedActiveEffects
-    val after = this.calculateActiveEffects()
+    val lock = updateEffectLocks.computeIfAbsent(this.uuid) { Any() }
 
-    previousStates[this.uuid] = after
+    synchronized(lock) {
+        val before = this.providedActiveEffects
+        val after = this.calculateActiveEffects()
 
-    // Permanent effects also have a run order, so we need to sort them.
-    val added = (after without before).sorted()
-    val removed = (before without after).sorted()
+        previousStates[this.uuid] = after
 
-    for ((effect, holder) in removed) {
-        effect.disable(this, holder)
-    }
+        // Permanent effects also have a run order, so we need to sort them.
+        val added = (after without before).sorted()
+        val removed = (before without after).sorted()
 
-    for ((effect, holder) in added) {
-        effect.enable(this, holder)
-    }
+        for ((effect, holder) in removed) {
+            effect.disable(this, holder)
+        }
 
-    // Reloading is now done by disabling all, then enabling all. Effect#reload is deprecated.
-    // Since permanent effects are not allowed in chains, they are always done in the correct
-    // order as mixing weights is not a concern.
-    val toReload = (after without added).sorted()
+        for ((effect, holder) in added) {
+            effect.enable(this, holder)
+        }
 
-    for ((effect, holder) in toReload) {
-        effect.disable(this, holder, isReload = true)
-    }
+        // Reloading is now done by disabling all, then enabling all. Effect#reload is deprecated.
+        // Since permanent effects are not allowed in chains, they are always done in the correct
+        // order as mixing weights is not a concern.
+        val toReload = (after without added).sorted()
 
-    for ((effect, holder) in toReload) {
-        effect.enable(this, holder, isReload = true)
+        for ((effect, holder) in toReload) {
+            effect.disable(this, holder, isReload = true)
+        }
+
+        for ((effect, holder) in toReload) {
+            effect.enable(this, holder, isReload = true)
+        }
     }
 }
 
