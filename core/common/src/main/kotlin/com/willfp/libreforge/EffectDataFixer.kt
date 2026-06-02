@@ -4,6 +4,7 @@ import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import com.willfp.libreforge.effects.Effects
 import org.bukkit.Registry
 import org.bukkit.attribute.Attribute
+import org.bukkit.attribute.AttributeModifier
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -15,6 +16,7 @@ object EffectDataFixer : Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     fun clearOnQuit(event: PlayerQuitEvent) {
         val player = event.player
+
         val dispatcher = player.toDispatcher()
 
         for ((effect, holder) in dispatcher.providedActiveEffects) {
@@ -44,19 +46,19 @@ object EffectDataFixer : Listener {
     }
 
     private fun Player.fixAttributes() {
-        val effectIds = Effects.values().map { it.id }.toSet()
+        val effectIds: Set<String> = Effects.values().map { it.id }.toSet()
 
         for (attribute in Registry.ATTRIBUTE) {
-            val inst = this.getAttribute(attribute) ?: continue
-            for (mod in inst.modifiers) {
-                if (mod.name.startsWith("libreforge") || effectIds.any { mod.name.startsWith(it) }) {
-                    inst.removeModifier(mod)
-                }
+            val attributeInstance = this.getAttribute(attribute) ?: continue
+            val modsToRemove: List<AttributeModifier> = attributeInstance.modifiers.filter { modifier ->
+                modifier.name.startsWith("libreforge") || effectIds.any { effectId -> modifier.name.startsWith(effectId) }
+            }.toList()
+            for (modifier in modsToRemove) {
+                attributeInstance.removeModifier(modifier)
             }
         }
 
-        // Extra fix
-        val maxHealth = this.getAttribute(Attribute.MAX_HEALTH)?.value ?: 0.0
+        val maxHealth: Double = this.getAttribute(Attribute.MAX_HEALTH)?.value ?: 0.0
         if (this.health > maxHealth) {
             this.health = maxHealth
         }
