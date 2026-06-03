@@ -48,21 +48,22 @@ abstract class AttributeEffect(
             return
         }
 
-        val instance = entity.getAttribute(attribute) ?: return
-        val modifierName = "libreforge:${this.id} - ${identifiers.key.key} (${holder.holder.id})"
+        entity.scheduler.run(plugin, {
+            val instance = entity.getAttribute(attribute) ?: return@run
+            val modifierName = "libreforge:${this.id} - ${identifiers.key.key} (${holder.holder.id})"
 
-        instance.clean(modifierName, identifiers)
+            instance.clean(modifierName, identifiers)
 
-        val modifier = attributeModifier(
-            identifiers,
-            modifierName,
-            getValue(config, entity),
-            operation
-        )
+            val modifier = attributeModifier(
+                identifiers,
+                modifierName,
+                getValue(config, entity),
+                operation
+            )
 
-        // Extra check to prevent adding the same modifier twice.
-        instance.removeModifier(modifier)
-        instance.addModifier(modifier)
+            instance.removeModifier(modifier)
+            instance.addModifier(modifier)
+        }, {})
     }
 
     override fun onDisable(dispatcher: Dispatcher<*>, identifiers: Identifiers, holder: ProvidedHolder) {
