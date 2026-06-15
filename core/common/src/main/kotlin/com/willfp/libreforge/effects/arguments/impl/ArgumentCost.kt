@@ -1,7 +1,6 @@
 package com.willfp.libreforge.effects.arguments.impl
 
 import com.willfp.eco.core.integrations.economy.balance
-import com.willfp.eco.core.sound.PlayableSound
 import com.willfp.eco.util.NumberUtils
 import com.willfp.eco.util.PlayerUtils
 import com.willfp.eco.util.StringUtils
@@ -10,6 +9,7 @@ import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.effects.arguments.EffectArgument
 import com.willfp.libreforge.get
 import com.willfp.libreforge.getDoubleFromExpression
+import com.willfp.libreforge.playConfigSound
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.DispatchedTrigger
 import org.bukkit.entity.Player
@@ -39,7 +39,7 @@ object ArgumentCost : EffectArgument<NoCompileData>("cost") {
             player.sendMessage(message)
         }
 
-        PlayableSound.create(plugin.configYml.getSubsection("cannot-afford.sound"))?.playTo(player)
+        playConfigSound(plugin.configYml.getSubsection("cannot-afford.sound"), player)
     }
 
     override fun ifMet(element: ConfigurableElement, trigger: DispatchedTrigger, compileData: NoCompileData) {

@@ -1,6 +1,8 @@
 package com.willfp.libreforge
 
+import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.eco.core.items.Items
+import com.willfp.eco.util.SoundUtils
 import com.willfp.eco.util.namespacedKeyOf
 import org.bukkit.Bukkit
 import org.bukkit.Location
@@ -84,6 +86,49 @@ fun ItemStack.applyDamage(damage: Int, player: Player?): Boolean {
     }
 
     return true
+}
+
+/**
+ * Play a sound configured under [config] to [player].
+ *
+ * This replaces eco's [com.willfp.eco.core.sound.PlayableSound.playTo], which (as of eco 7.6.3)
+ * computes the pitch via `ThreadLocalRandom.nextDouble(minPitch, maxPitch)`. That call throws
+ * `IllegalArgumentException: bound must be greater than origin` whenever the configured pitch is a
+ * single value (so `minPitch == maxPitch`), which is the default in libreforge's own config.yml.
+ *
+ * Reads the same keys as eco (`enabled`, `sound`, `pitch`, `volume`, `category`) and supports the
+ * `"min..max"` pitch range notation, but only randomises the pitch when the range is actually
+ * non-empty.
+ */
+fun playConfigSound(config: Config, player: Player) {
+    if (config.getBoolOrNull("enabled") == false) {
+        return
+    }
+
+    val soundName = config.getStringOrNull("sound") ?: return
+    val sound = SoundUtils.getSound(soundName) ?: return
+
+    val volume = config.getDoubleOrNull("volume") ?: 1.0
+
+    val pitchString = config.getStringOrNull("pitch") ?: "1.0"
+    val pitch = if (pitchString.contains("..")) {
+        val (min, max) = pitchString.split("..", limit = 2)
+            .let { (it.getOrNull(0)?.toDoubleOrNull() ?: 1.0) to (it.getOrNull(1)?.toDoubleOrNull() ?: 1.0) }
+
+        if (max > min) {
+            min + Math.random() * (max - min)
+        } else {
+            min
+        }
+    } else {
+        pitchString.toDoubleOrNull() ?: 1.0
+    }
+
+    val category = config.getStringOrNull("category")
+        ?.let { enumValueOfOrNull<SoundCategory>(it.uppercase()) }
+        ?: SoundCategory.MASTER
+
+    player.playSound(player.location, sound, category, volume.toFloat(), pitch.toFloat())
 }
 
 // 1.21 compat

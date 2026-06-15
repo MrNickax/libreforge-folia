@@ -1,7 +1,6 @@
 package com.willfp.libreforge.effects.arguments.impl
 
 import com.willfp.eco.core.config.interfaces.Config
-import com.willfp.eco.core.sound.PlayableSound
 import com.willfp.eco.util.PlayerUtils
 import com.willfp.eco.util.StringUtils
 import com.willfp.eco.util.formatEco
@@ -13,6 +12,7 @@ import com.willfp.libreforge.effects.Effects
 import com.willfp.libreforge.effects.arguments.EffectArgument
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.ifType
+import com.willfp.libreforge.playConfigSound
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.DispatchedTrigger
 import org.bukkit.entity.Player
@@ -76,7 +76,7 @@ object ArgumentCooldown : EffectArgument<Chain?>("cooldown") {
                 player.sendMessage(message)
             }
 
-            PlayableSound.create(plugin.configYml.getSubsection("cooldown.sound"))?.playTo(player)
+            playConfigSound(plugin.configYml.getSubsection("cooldown.sound"), player)
         }
     }
 
