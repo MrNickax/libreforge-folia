@@ -7,9 +7,11 @@ import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 object TriggerMeleeAttack : Trigger("melee_attack") {
     override val parameters = setOf(
@@ -20,9 +22,11 @@ object TriggerMeleeAttack : Trigger("melee_attack") {
         TriggerParameter.ITEM
     )
 
-    private val processedEvents = mutableSetOf<UUID>()
+    // Guards against recursive re-entry on the same victim (e.g. an effect that deals damage
+    // back). Thread-safe for Folia, where damage events fire on parallel region threads.
+    private val processingEntities = ConcurrentHashMap.newKeySet<UUID>()
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun handle(event: EntityDamageByEntityEvent) {
         val attacker = event.damager as? LivingEntity ?: return
         val victim = event.entity as? LivingEntity ?: return
@@ -31,24 +35,25 @@ object TriggerMeleeAttack : Trigger("melee_attack") {
             return
         }
 
-        if (processedEvents.contains(event.entity.uniqueId)) {
+        // Atomic check-and-add; skip if this victim is already being processed (re-entry)
+        if (!processingEntities.add(victim.uniqueId)) {
             return
         }
 
-        processedEvents.add(event.entity.uniqueId)
-
-        this.dispatch(
-            attacker.toDispatcher(),
-            TriggerData(
-                player = attacker as? Player,
-                victim = victim,
-                location = victim.location,
-                event = event,
-                item = attacker.equipment?.itemInMainHand,
-                value = event.finalDamage
+        try {
+            this.dispatch(
+                attacker.toDispatcher(),
+                TriggerData(
+                    player = attacker as? Player,
+                    victim = victim,
+                    location = victim.location,
+                    event = event,
+                    item = attacker.equipment?.itemInMainHand,
+                    value = event.finalDamage
+                )
             )
-        )
-
-        processedEvents.clear()
+        } finally {
+            processingEntities.remove(victim.uniqueId)
+        }
     }
 }

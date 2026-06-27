@@ -8,6 +8,7 @@ import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 
 object TriggerHeadshot : Trigger("headshot") {
@@ -19,7 +20,7 @@ object TriggerHeadshot : Trigger("headshot") {
         TriggerParameter.VELOCITY
     )
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun handle(event: EntityDamageByEntityEvent) {
         val projectile = event.damager as? Projectile ?: return
         val victim = event.entity as? LivingEntity ?: return

@@ -11,6 +11,7 @@ import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.entity.Trident
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.ProjectileLaunchEvent
 
@@ -38,7 +39,7 @@ object TriggerTridentAttack : Trigger("trident_attack") {
         )
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun handle(event: EntityDamageByEntityEvent) {
         val trident = event.damager as? Trident ?: return
         val victim = event.entity as? LivingEntity ?: return
