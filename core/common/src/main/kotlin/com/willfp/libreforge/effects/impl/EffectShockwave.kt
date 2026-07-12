@@ -9,6 +9,7 @@ import com.willfp.libreforge.getIntFromExpression
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.entity.LivingEntity
 
 object EffectShockwave : Effect<NoCompileData>("shockwave") {
@@ -34,25 +35,40 @@ object EffectShockwave : Effect<NoCompileData>("shockwave") {
         val hit = mutableSetOf<LivingEntity>()
         var pulse = 0
 
-        plugin.runnableFactory.create { task ->
-            pulse++
-            val currentRadius = radius * pulse / pulses
+        Bukkit.getRegionScheduler().runAtFixedRate(
+            plugin,
+            origin,
+            { task ->
+                pulse++
+                val currentRadius = radius * pulse / pulses
 
-            origin.world?.getNearbyEntities(origin, currentRadius, currentRadius, currentRadius)
-                ?.filterIsInstance<LivingEntity>()
-                ?.filter { it !in hit && it != player }
-                ?.forEach { entity ->
-                    hit.add(entity)
-                    val dir = entity.location.toVector()
-                        .subtract(origin.toVector())
-                        .normalize()
-                    entity.velocity = dir.multiply(knockback)
-                    entity.damage(damage)
-                }
+                safeRead { origin.world?.getNearbyEntities(origin, currentRadius, currentRadius, currentRadius) }
+                    ?.filterIsInstance<LivingEntity>()
+                    ?.filter { it !in hit && it != player }
+                    ?.forEach { entity ->
+                        hit.add(entity)
+                        val dir = entity.location.toVector()
+                            .subtract(origin.toVector())
+                            .normalize()
+                        entity.velocity = dir.multiply(knockback)
+                        entity.damage(damage)
+                    }
 
-            if (pulse >= pulses) task.cancel()
-        }.runTaskTimer(0L, 3L)
+                if (pulse >= pulses) task.cancel()
+            },
+            1L,
+            3L
+        )
 
         return true
     }
+
+    // Folia-safe read: a getNearbyEntities AABB that reaches into a neighbouring region fails
+    // the region tick-thread check (IllegalStateException); degrade to null instead of failing.
+    private inline fun <T> safeRead(block: () -> T): T? =
+        try {
+            block()
+        } catch (_: IllegalStateException) {
+            null
+        }
 }

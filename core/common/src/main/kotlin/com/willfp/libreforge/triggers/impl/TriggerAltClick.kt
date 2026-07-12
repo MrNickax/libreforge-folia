@@ -104,15 +104,25 @@ object TriggerAltClick : Trigger("alt_click") {
 
         val location: Location?
         val world = player.location.world ?: return
-        val result = player.rayTraceBlocks(
-            plugin.configYml.getDouble("raytrace-distance"),
-            FluidCollisionMode.NEVER
-        )
 
-        val entityResult = world.rayTraceEntities(
-            player.eyeLocation,
-            player.eyeLocation.direction, 50.0, 3.0
-        ) { entity: Entity? -> entity is LivingEntity }
+        // Folia/Canvas: rayTraceBlocks (block access) and rayTraceEntities (Level.getEntities)
+        // fail the region tick-thread check when the ray reaches into a neighbouring region,
+        // throwing IllegalStateException ("Thread failed main thread check") and aborting the
+        // event. There is no synchronous cross-region entity query in Folia, so we degrade the
+        // same way TriggerData.safeRead does: on the thread-check failure, treat it as "no hit".
+        val result = safeRead {
+            player.rayTraceBlocks(
+                plugin.configYml.getDouble("raytrace-distance"),
+                FluidCollisionMode.NEVER
+            )
+        }
+
+        val entityResult = safeRead {
+            world.rayTraceEntities(
+                player.eyeLocation,
+                player.eyeLocation.direction, 50.0, 3.0
+            ) { entity: Entity? -> entity is LivingEntity }
+        }
 
         location = result?.hitPosition?.toLocation(world)
             ?: if (entityResult != null) {
@@ -145,4 +155,13 @@ object TriggerAltClick : Trigger("alt_click") {
             )
         )
     }
+
+    // Folia-safe read: swallow the region tick-thread check failure (IllegalStateException)
+    // so a cross-region ray-trace degrades to "no hit" instead of failing the event.
+    private inline fun <T> safeRead(block: () -> T): T? =
+        try {
+            block()
+        } catch (_: IllegalStateException) {
+            null
+        }
 }

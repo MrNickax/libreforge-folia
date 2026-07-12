@@ -37,22 +37,30 @@ object EffectAntigravityProjectile : Effect<NoCompileData>("antigravity_projecti
         val projectile = event.entity
         projectile.setGravity(false)
         val launchSpeed = projectile.velocity.length()
-        plugin.runnableFactory.create { task ->
-            if (projectile.isDead || projectile.isOnGround) {
-                task.cancel()
-                return@create
-            }
-            val velocity = projectile.velocity
-            val nextChunk = projectile.location.add(velocity).chunk
-            if (!nextChunk.isLoaded) {
-                projectile.setGravity(true)
-                task.cancel()
-                return@create
-            }
-            val currentSpeed = velocity.length()
-            if (currentSpeed > 0) {
-                projectile.velocity = velocity.multiply(launchSpeed / currentSpeed)
-            }
-        }.runTaskTimer(0L, 1L)
+        // Folia: run on the projectile's own entity scheduler so it ticks on the projectile's
+        // owning region thread and migrates with it, keeping velocity/chunk access on-region.
+        projectile.scheduler.runAtFixedRate(
+            plugin,
+            { task ->
+                if (projectile.isDead || projectile.isOnGround) {
+                    task.cancel()
+                    return@runAtFixedRate
+                }
+                val velocity = projectile.velocity
+                val nextChunk = projectile.location.add(velocity).chunk
+                if (!nextChunk.isLoaded) {
+                    projectile.setGravity(true)
+                    task.cancel()
+                    return@runAtFixedRate
+                }
+                val currentSpeed = velocity.length()
+                if (currentSpeed > 0) {
+                    projectile.velocity = velocity.multiply(launchSpeed / currentSpeed)
+                }
+            },
+            null,
+            1L,
+            1L
+        )
     }
 }

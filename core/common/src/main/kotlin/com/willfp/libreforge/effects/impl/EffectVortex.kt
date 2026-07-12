@@ -11,6 +11,7 @@ import com.willfp.libreforge.getOrNull
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.entity.LivingEntity
 
 object EffectVortex : Effect<NoCompileData>("vortex") {
@@ -38,31 +39,46 @@ object EffectVortex : Effect<NoCompileData>("vortex") {
         val affected = mutableSetOf<LivingEntity>()
         var tick = 0
 
-        plugin.runnableFactory.create { task ->
-            tick++
+        Bukkit.getRegionScheduler().runAtFixedRate(
+            plugin,
+            origin,
+            { task ->
+                tick++
 
-            origin.world?.getNearbyEntities(origin, radius, radius, radius)
-                ?.asSequence()
-                ?.filterIsInstance<LivingEntity>()
-                ?.filter { it != player }
-                ?.filterNot { it.hasMetadata("NPC") }
-                ?.filterNot { entity -> blacklist.any { it.matches(entity) } }
-                ?.filter { entity -> whitelist == null || whitelist.any { it.matches(entity) } }
-                ?.forEach { entity ->
-                    affected.add(entity)
-                    val pull = origin.toVector()
-                        .subtract(entity.location.toVector())
-                        .normalize()
-                        .multiply(pullStrength)
-                    entity.velocity = entity.velocity.add(pull)
+                safeRead { origin.world?.getNearbyEntities(origin, radius, radius, radius) }
+                    ?.asSequence()
+                    ?.filterIsInstance<LivingEntity>()
+                    ?.filter { it != player }
+                    ?.filterNot { it.hasMetadata("NPC") }
+                    ?.filterNot { entity -> blacklist.any { it.matches(entity) } }
+                    ?.filter { entity -> whitelist == null || whitelist.any { it.matches(entity) } }
+                    ?.forEach { entity ->
+                        affected.add(entity)
+                        val pull = origin.toVector()
+                            .subtract(entity.location.toVector())
+                            .normalize()
+                            .multiply(pullStrength)
+                        entity.velocity = entity.velocity.add(pull)
+                    }
+
+                if (tick >= duration) {
+                    affected.forEach { it.damage(damage) }
+                    task.cancel()
                 }
-
-            if (tick >= duration) {
-                affected.forEach { it.damage(damage) }
-                task.cancel()
-            }
-        }.runTaskTimer(0L, 1L)
+            },
+            1L,
+            1L
+        )
 
         return true
     }
+
+    // Folia-safe read: a getNearbyEntities AABB that reaches into a neighbouring region fails
+    // the region tick-thread check (IllegalStateException); degrade to null instead of failing.
+    private inline fun <T> safeRead(block: () -> T): T? =
+        try {
+            block()
+        } catch (_: IllegalStateException) {
+            null
+        }
 }

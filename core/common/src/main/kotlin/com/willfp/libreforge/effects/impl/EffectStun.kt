@@ -25,11 +25,19 @@ object EffectStun : Effect<NoCompileData>("stun") {
 
         var current = 0
 
-        plugin.runnableFactory.create {
-            current++
-            victim.velocity = Vector(0, 0, 0)
-            if (current >= ticks) it.cancel()
-        }.runTaskTimer(0L, 1L)
+        // Folia: run on the victim's own entity scheduler so it ticks on the entity's
+        // owning region thread (and follows it across regions), like TriggerTakeEntityDamage.
+        victim.scheduler.runAtFixedRate(
+            plugin,
+            { task ->
+                current++
+                victim.velocity = Vector(0, 0, 0)
+                if (current >= ticks) task.cancel()
+            },
+            null,
+            1L,
+            1L
+        )
 
         return true
     }
