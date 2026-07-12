@@ -27,8 +27,21 @@ allprojects {
     repositories {
         mavenLocal() // TODO: REMOVE
         mavenCentral()
+
+        // Folia fork of eco (com.willfp:eco:*-folia), published to GitHub Packages.
+        maven("https://maven.pkg.github.com/MrNickax/eco-folia") {
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: (findProperty("gpr.user") as String?)
+                password = System.getenv("GITHUB_TOKEN") ?: (findProperty("gpr.key") as String?)
+            }
+            content { includeGroup("com.willfp") }
+        }
+
         maven("https://jitpack.io/")
-        maven("https://repo.auxilor.io/repository/maven-public/")
+        // Upstream helper libs only — never eco/libreforge (those come from GitHub Packages above).
+        maven("https://repo.auxilor.io/repository/maven-public/") {
+            content { excludeGroup("com.willfp") }
+        }
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://repo.purpurmc.org/snapshots")
         maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
@@ -53,11 +66,11 @@ allprojects {
     publishing {
         repositories {
             maven {
-                name = "auxilor"
-                url = uri("https://repo.auxilor.io/repository/maven-releases/")
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/MrNickax/libreforge-folia")
                 credentials {
-                    username = System.getenv("MAVEN_USERNAME")
-                    password = System.getenv("MAVEN_PASSWORD")
+                    username = System.getenv("GITHUB_ACTOR") ?: (findProperty("gpr.user") as String?)
+                    password = System.getenv("GITHUB_TOKEN") ?: (findProperty("gpr.key") as String?)
                 }
             }
         }
