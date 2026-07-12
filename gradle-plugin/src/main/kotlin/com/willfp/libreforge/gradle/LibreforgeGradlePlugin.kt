@@ -79,7 +79,7 @@ class LibreforgeGradlePlugin : Plugin<Project> {
 
                     task.destinationDirectory.set(project.file("${project.rootDir}/bin"))
                     val archivesName = project.extensions.findByType(BasePluginExtension::class.java)?.archivesName?.get() ?: project.name
-                    task.archiveFileName.set("$archivesName-v${project.version}.jar")
+                    task.archiveFileName.set("$archivesName v${project.version}.jar")
                     task.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
                     task.dependsOn(shadowJarTask)
@@ -101,7 +101,7 @@ class LibreforgeGradlePlugin : Plugin<Project> {
 
                     task.destinationDirectory.set(project.file("${project.rootDir}/bin"))
                     val archivesName = project.extensions.findByType(BasePluginExtension::class.java)?.archivesName?.get() ?: project.name
-                    task.archiveFileName.set("$archivesName-v${project.version}.jar")
+                    task.archiveFileName.set("$archivesName v${project.version}.jar")
                     task.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
                     task.dependsOn(shadowJarTask)

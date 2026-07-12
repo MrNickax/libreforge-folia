@@ -10,7 +10,7 @@ dependencies {
 }
 
 group = "com.willfp"
-version = "2.0.2-folia"
+version = "2.0.1-folia"
 
 tasks {
     build {
