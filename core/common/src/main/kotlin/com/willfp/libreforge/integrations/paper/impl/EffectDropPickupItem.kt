@@ -57,7 +57,7 @@ object EffectDropPickupItem : Effect<Chain?>("drop_pickup_item") {
 
         if (glowColor != null) {
             val team = TeamUtils.fromChatColor(glowColor)
-            team.addEntry(item.uniqueId.toString())
+            team?.addEntry(item.uniqueId.toString())
             item.isGlowing = true
         }
 
