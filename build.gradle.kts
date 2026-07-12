@@ -29,19 +29,18 @@ allprojects {
         mavenCentral()
 
         // Folia fork of eco (com.willfp:eco:*-folia), published to GitHub Packages.
+        // Pin only the forked module here; every other com.willfp artifact (e.g.
+        // ModelEngineBridge) still resolves from auxilor below.
         maven("https://maven.pkg.github.com/MrNickax/eco-folia") {
             credentials {
                 username = System.getenv("GITHUB_ACTOR") ?: (findProperty("gpr.user") as String?)
                 password = System.getenv("GITHUB_TOKEN") ?: (findProperty("gpr.key") as String?)
             }
-            content { includeGroup("com.willfp") }
+            content { includeModule("com.willfp", "eco") }
         }
 
         maven("https://jitpack.io/")
-        // Upstream helper libs only — never eco/libreforge (those come from GitHub Packages above).
-        maven("https://repo.auxilor.io/repository/maven-public/") {
-            content { excludeGroup("com.willfp") }
-        }
+        maven("https://repo.auxilor.io/repository/maven-public/")
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://repo.purpurmc.org/snapshots")
         maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
