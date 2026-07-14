@@ -15,8 +15,6 @@ import org.bukkit.entity.LivingEntity
 import java.util.UUID
 
 object EffectDamageNearbyEntities : Effect<Collection<TestableEntity>>("damage_nearby_entities") {
-    private val damagedEntities = mutableSetOf<UUID>()
-
     override val parameters = setOf(
         TriggerParameter.LOCATION, TriggerParameter.PLAYER
     )
@@ -36,6 +34,8 @@ object EffectDamageNearbyEntities : Effect<Collection<TestableEntity>>("damage_n
         val damageAsPlayer = config.getBool("damage_as_player")
         val damage = config.getDoubleFromExpression("damage", data)
         val damageSelf = config.getBoolOrNull("damage_self") ?: true
+
+        val damagedEntities = mutableSetOf<UUID>()
 
         for (entity in world.getNearbyEntities(location, radius, radius, radius)) {
             if (entity.hasMetadata("ignore-nearby-damage") || damagedEntities.contains(entity.uniqueId)) {
@@ -76,8 +76,6 @@ object EffectDamageNearbyEntities : Effect<Collection<TestableEntity>>("damage_n
                 entity.damage(damage)
             }
         }
-
-        damagedEntities.clear()
 
         return true
     }

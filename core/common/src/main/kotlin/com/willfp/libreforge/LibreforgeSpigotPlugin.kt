@@ -72,7 +72,6 @@ import com.willfp.libreforge.tags.CustomTag
 import com.willfp.libreforge.triggers.DispatchedTriggerFactory
 import com.willfp.libreforge.triggers.Triggers
 import org.bukkit.Bukkit
-import org.bukkit.entity.LivingEntity
 import org.bukkit.event.Listener
 
 internal lateinit var plugin: LibreforgeSpigotPlugin
@@ -199,20 +198,20 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
         if (configYml.getBool("refresh.entities.enabled")) {
             /*
             Poll for condition changes in entities.
-            Each world is offset by 3 ticks to prevent lag spikes.
+            Folia: reading world.entities off-region is unsafe, so hop to each
+            player's own scheduler and poll on that player's owning region thread.
              */
-            var currentOffset = 30L
-            for (world in Bukkit.getWorlds()) {
-                Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
-                    for (entity in world.entities) {
-                        if (entity is LivingEntity) {
-                            entity.toDispatcher().pollEffects()
-                        }
-                    }
-                }, currentOffset, configYml.getInt("refresh.entities.interval").toLong())
-
-                currentOffset += 3
-            }
+            Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
+                for (player in Bukkit.getOnlinePlayers()) {
+                    player.scheduler.run(
+                        this,
+                        {
+                            player.toDispatcher().pollEffects()
+                        },
+                        {}
+                    )
+                }
+            }, 30L, configYml.getInt("refresh.entities.interval").toLong())
         }
 
         // Poll for condition changes in global holders
