@@ -1,6 +1,7 @@
 package com.willfp.libreforge.integrations.votifier.impl
 
 import com.vexsoftware.votifier.model.VotifierEvent
+import com.willfp.libreforge.plugin
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
@@ -21,13 +22,19 @@ object TriggerRegisterVote : Trigger("register_vote") {
         val player = Bukkit.getPlayerExact(username) ?: return
         val service = event.vote.serviceName ?: return
 
-        this.dispatch(
-            player.toDispatcher(),
-            TriggerData(
-                player = player,
-                event = event,
-                text = service
-            )
+        player.scheduler.run(
+            plugin,
+            {
+                this.dispatch(
+                    player.toDispatcher(),
+                    TriggerData(
+                        player = player,
+                        event = event,
+                        text = service
+                    )
+                )
+            },
+            {}
         )
     }
 }
