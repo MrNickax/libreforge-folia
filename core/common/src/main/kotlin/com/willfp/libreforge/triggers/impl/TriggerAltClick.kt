@@ -106,23 +106,36 @@ object TriggerAltClick : Trigger("alt_click") {
         val world = player.location.world ?: return
 
         // Folia/Canvas: rayTraceBlocks (block access) and rayTraceEntities (Level.getEntities)
-        // fail the region tick-thread check when the ray reaches into a neighbouring region,
-        // throwing IllegalStateException ("Thread failed main thread check") and aborting the
-        // event. There is no synchronous cross-region entity query in Folia, so we degrade the
-        // same way TriggerData.safeRead does: on the thread-check failure, treat it as "no hit".
-        val result = safeRead {
-            player.rayTraceBlocks(
-                plugin.configYml.getDouble("raytrace-distance"),
-                FluidCollisionMode.NEVER
-            )
-        }
+        // fail the region tick-thread check when the ray reaches into a neighbouring region.
+        // moonrise's TickThread.ensureTickThread LOGS a Throwable *before* it throws the
+        // IllegalStateException ("Thread failed main thread check"), so catching the throw
+        // (safeRead, below) stops the functional breakage but NOT the log spam. To keep the log
+        // silent we must never invoke the ray-trace when it could reach cross-region: each call
+        // is gated on region ownership of every chunk the ray can touch. When the ray is
+        // cross-region we skip the call and leave the result null, which degrades to exactly the
+        // same "no hit" fallback the code already uses below (same fallback location, null victim).
+        // safeRead stays as the final safety net for any residual edge case.
+        val blockDistance = plugin.configYml.getDouble("raytrace-distance")
+        val result =
+            if (rayIsRegionLocal(player.eyeLocation, blockDistance, 0)) {
+                safeRead {
+                    player.rayTraceBlocks(blockDistance, FluidCollisionMode.NEVER)
+                }
+            } else {
+                null
+            }
 
-        val entityResult = safeRead {
-            world.rayTraceEntities(
-                player.eyeLocation,
-                player.eyeLocation.direction, 50.0, 3.0
-            ) { entity: Entity? -> entity is LivingEntity }
-        }
+        val entityResult =
+            if (rayIsRegionLocal(player.eyeLocation, 50.0, 1)) {
+                safeRead {
+                    world.rayTraceEntities(
+                        player.eyeLocation,
+                        player.eyeLocation.direction, 50.0, 3.0
+                    ) { entity: Entity? -> entity is LivingEntity }
+                }
+            } else {
+                null
+            }
 
         location = result?.hitPosition?.toLocation(world)
             ?: if (entityResult != null) {
@@ -164,4 +177,28 @@ object TriggerAltClick : Trigger("alt_click") {
         } catch (_: IllegalStateException) {
             null
         }
+
+    // Chunk sampling step (blocks) for the region-ownership walk along a ray.
+    private const val CHUNK_STEP = 16.0
+
+    // True only if every chunk the ray can touch is owned by the current region thread.
+    // We sample along the ray one chunk at a time (plus the exact endpoint), each check
+    // covering a [radiusChunks] square radius to absorb the ray-trace AABB expansion
+    // (raySize). A Folia region is a contiguous block of chunks, so sampling each chunk
+    // plus the endpoint is sufficient to prove the whole ray stays region-local. If any
+    // sample is cross-region we must NOT ray-trace, because moonrise's tick-thread check
+    // would log-then-throw before we could catch it.
+    private fun rayIsRegionLocal(origin: Location, maxDistance: Double, radiusChunks: Int): Boolean {
+        val direction = origin.direction
+        var travelled = 0.0
+        while (travelled < maxDistance) {
+            val point = origin.clone().add(direction.clone().multiply(travelled))
+            if (!Bukkit.isOwnedByCurrentRegion(point, radiusChunks)) {
+                return false
+            }
+            travelled += CHUNK_STEP
+        }
+        val end = origin.clone().add(direction.clone().multiply(maxDistance))
+        return Bukkit.isOwnedByCurrentRegion(end, radiusChunks)
+    }
 }
