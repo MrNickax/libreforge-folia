@@ -1,5 +1,6 @@
 package com.willfp.libreforge.effects.impl
 
+import java.util.concurrent.ConcurrentHashMap
 import com.willfp.eco.core.cache.EcoCache
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
@@ -64,7 +65,7 @@ object EffectAddHolderInRadius : Effect<HolderTemplate>("add_holder_in_radius") 
         )
     }
 
-    private val holders = mutableSetOf<NearbyHolder>()
+    private val holders = ConcurrentHashMap.newKeySet<NearbyHolder>()
 
     private val nearbyCache = EcoCache.builder<UUID, Collection<SimpleProvidedHolder>>()
         .expireAfterWrite(Duration.ofMillis(250L))

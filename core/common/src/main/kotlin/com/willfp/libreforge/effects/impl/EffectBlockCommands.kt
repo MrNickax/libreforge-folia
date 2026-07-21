@@ -34,7 +34,7 @@ object EffectBlockCommands : Effect<NoCompileData>("block_commands") {
     }
 
     private val players = nestedListMap<UUID, UUID, String>()
-    private val messages = mutableMapOf<UUID, List<String>?>()
+    private val messages = java.util.Collections.synchronizedMap(mutableMapOf<UUID, List<String>?>())
 
     override fun onEnable(
         dispatcher: Dispatcher<*>,

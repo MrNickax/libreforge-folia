@@ -1,5 +1,6 @@
 package com.willfp.libreforge.effects.impl
 
+import java.util.concurrent.ConcurrentHashMap
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.Dispatcher
 import com.willfp.libreforge.ProvidedHolder
@@ -24,7 +25,7 @@ object EffectInfiniteBucket : Effect<Set<String>>("infinite_bucket") {
         require(listOf("type", "types"), "You must specify the bucket type(s) (e.g. type: any, or types: [lava, water, axolotl, etc.])!")
     }
 
-    private val activePlayers = mutableMapOf<UUID, Set<String>>()
+    private val activePlayers = ConcurrentHashMap<UUID, Set<String>>()
 
     @EventHandler
     fun onBucketEmpty(event: PlayerBucketEmptyEvent) {

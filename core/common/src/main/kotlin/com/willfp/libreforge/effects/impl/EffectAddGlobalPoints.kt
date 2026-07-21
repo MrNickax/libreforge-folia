@@ -1,5 +1,6 @@
 package com.willfp.libreforge.effects.impl
 
+import java.util.concurrent.ConcurrentHashMap
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.Dispatcher
@@ -32,7 +33,7 @@ object EffectAddGlobalPoints : Effect<NoCompileData>("add_global_points") {
         )
     }
 
-    private val tracker = mutableMapOf<UUID, AddedPoint>()
+    private val tracker = ConcurrentHashMap<UUID, AddedPoint>()
 
     override fun onEnable(
         dispatcher: Dispatcher<*>,

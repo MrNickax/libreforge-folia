@@ -1,5 +1,6 @@
 package com.willfp.libreforge.effects.impl
 
+import java.util.concurrent.ConcurrentHashMap
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.eco.core.items.Items
 import com.willfp.eco.core.items.TestableItem
@@ -51,7 +52,7 @@ object EffectItemMagnet : Effect<EffectItemMagnet.ItemMagnetFilter>("item_magnet
         )
     }
 
-    private val tasks = mutableMapOf<Identifiers, ScheduledTask>()
+    private val tasks = ConcurrentHashMap<Identifiers, ScheduledTask>()
 
     override fun onEnable(
         dispatcher: Dispatcher<*>,

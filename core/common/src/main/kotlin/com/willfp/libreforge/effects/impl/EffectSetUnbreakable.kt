@@ -1,5 +1,6 @@
 package com.willfp.libreforge.effects.impl
 
+import java.util.concurrent.ConcurrentHashMap
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.ConfigWarning
@@ -47,7 +48,7 @@ object EffectSetUnbreakable : Effect<NoCompileData>("set_unbreakable") {
     private val VALID_SLOTS = setOf("holder", "mainhand", "offhand", "helmet", "chestplate", "leggings", "boots")
 
     private data class EnabledState(val slot: String, val persistOnDisable: Boolean)
-    private val enabledStates = HashMap<UUID, EnabledState>()
+    private val enabledStates = ConcurrentHashMap<UUID, EnabledState>()
 
     override fun makeCompileData(config: Config, context: ViolationContext): NoCompileData {
         val slot = config.getStringOrNull("slot")
