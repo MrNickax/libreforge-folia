@@ -5,10 +5,14 @@ import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.get
 import com.willfp.libreforge.triggers.TriggerData
+import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 
 object EffectRemoveDispatcher : Effect<NoCompileData>("remove_dispatcher") {
+    override val description = "Removes (despawns) the dispatcher entity. Has no effect if the dispatcher is a player."
+    override val categories = setOf("combat", "entity")
+
     override val isPermanent: Boolean
         get() = false
 

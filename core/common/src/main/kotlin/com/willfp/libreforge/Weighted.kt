@@ -51,3 +51,4 @@ open class WeightedList<T : Weighted>(
 
 inline fun <reified T : Weighted> List<T>.toWeightedList(): WeightedList<T> =
     WeightedList(this)
+

@@ -3,53 +3,46 @@ package com.willfp.libreforge.triggers
 import com.willfp.eco.core.placeholder.InjectablePlaceholder
 import com.willfp.libreforge.Dispatcher
 import com.willfp.libreforge.NamedValue
-import com.willfp.libreforge.get
-import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.placeholders.TriggerPlaceholders
-import org.bukkit.entity.Player
 
 class DispatchedTrigger(
     val dispatcher: Dispatcher<*>,
     val trigger: Trigger,
     val data: TriggerData
 ) {
-    private val _placeholders = mutableListOf<NamedValue>()
+    private val _generatedPlaceholders = mutableListOf<NamedValue>()
+    private val _externalPlaceholders = mutableListOf<NamedValue>()
+    private var _cachedRawPlaceholders: List<NamedValue>? = null
+    private var _cachedPlaceholders: List<InjectablePlaceholder>? = null
 
     val rawPlaceholders: List<NamedValue>
-        get() = _placeholders
+        get() = _cachedRawPlaceholders ?: (_generatedPlaceholders + _externalPlaceholders).also {
+            _cachedRawPlaceholders = it
+        }
 
     val placeholders: List<InjectablePlaceholder>
-        get() = _placeholders.flatMap { it.placeholders }
+        get() = _cachedPlaceholders ?: rawPlaceholders.flatMap { it.placeholders }.also {
+            _cachedPlaceholders = it
+        }
 
-    @Deprecated(
-        "Use dispatcher instead",
-        ReplaceWith("toDispatcher().get()"),
-        DeprecationLevel.ERROR
-    )
-    val player: Player?
-        get() = dispatcher.get()
-
-    @Deprecated(
-        "DispatchedTrigger should be constructed with a Dispatcher",
-        ReplaceWith("DispatchedTrigger(player.toDispatcher(), trigger, data)"),
-        DeprecationLevel.ERROR
-    )
-    constructor(
-        player: Player,
-        trigger: Trigger,
-        data: TriggerData,
-    ) : this(player.toDispatcher(), trigger, data)
 
     fun addPlaceholder(placeholder: NamedValue) {
-        _placeholders += placeholder
+        _externalPlaceholders += placeholder
+        _cachedRawPlaceholders = null
+        _cachedPlaceholders = null
     }
 
     fun addPlaceholders(placeholder: Iterable<NamedValue>) {
-        _placeholders += placeholder
+        _externalPlaceholders += placeholder
+        _cachedRawPlaceholders = null
+        _cachedPlaceholders = null
     }
 
     fun inheritPlaceholders(other: DispatchedTrigger): DispatchedTrigger {
-        _placeholders += other._placeholders
+        _generatedPlaceholders += other._generatedPlaceholders
+        _externalPlaceholders += other._externalPlaceholders
+        _cachedRawPlaceholders = null
+        _cachedPlaceholders = null
         return this
     }
 
@@ -60,8 +53,11 @@ class DispatchedTrigger(
      * and again after mutation with the updated [data].
      */
     internal fun generatePlaceholders(data: TriggerData = this.data) {
+        _generatedPlaceholders.clear()
+        _cachedRawPlaceholders = null
+        _cachedPlaceholders = null
         for (placeholder in TriggerPlaceholders) {
-            _placeholders += placeholder.createPlaceholders(data)
+            _generatedPlaceholders += placeholder.createPlaceholders(data)
         }
     }
 

@@ -10,11 +10,9 @@ import com.willfp.libreforge.generatePlaceholders
 import com.willfp.libreforge.getProvidedActiveEffects
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.providedActiveEffects
-import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.event.TriggerDispatchEvent
 import com.willfp.libreforge.triggers.impl.TriggerAltClick
 import org.bukkit.Bukkit
-import org.bukkit.entity.Player
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Listener
 
@@ -25,6 +23,28 @@ abstract class Trigger(
      * The TriggerData parameters that are sent.
      */
     abstract val parameters: Set<TriggerParameter>
+
+    /**
+     * Human-readable description of when this trigger fires, shown on the wiki.
+     */
+    open val description: String = ""
+
+    /**
+     * Category tags for grouping and filtering on the wiki, e.g. "combat", "movement".
+     */
+    open val categories: Set<String> = emptySet()
+
+    /**
+     * Additional notes, warnings, or constraints shown on the wiki.
+     */
+    open val additionalInfo: List<String> = emptyList()
+
+    /**
+     * Per-parameter descriptions giving context specific to this trigger.
+     * Describes what each TriggerParameter value represents when this trigger fires,
+     * e.g. what VICTIM or VALUE actually contains for this specific event.
+     */
+    open val parameterDescriptions: Map<TriggerParameter, String> = emptyMap()
 
     /**
      * Whether this trigger is enabled.
@@ -60,16 +80,6 @@ abstract class Trigger(
         }
     }
 
-    @Deprecated(
-        "Use dispatch(dispatcher, data, forceHolders) instead",
-        ReplaceWith("dispatch(player.toDispatcher(), data, forceHolders)"),
-        DeprecationLevel.ERROR
-    )
-    fun dispatch(
-        player: Player,
-        data: TriggerData,
-        forceHolders: Collection<ProvidedHolder>? = null
-    ) = dispatch(player.toDispatcher(), data, forceHolders)
 
     /**
      * Dispatch the trigger.
@@ -95,14 +105,21 @@ abstract class Trigger(
         // Do this first to filter disabled triggers
         val dispatch = plugin.dispatchedTriggerFactory.create(dispatcher, this, data) ?: return
 
-        val counters = BoundCounters.values()
+        // Filter out effects that can't be triggered by this trigger
+        val triggerableEffects = mutableListOf<ProvidedEffectBlock>()
+
+        for (block in effects) {
+            if (block.effect.canBeTriggeredBy(this)) {
+                triggerableEffects += block
+            }
+        }
 
         // Prevent dispatching useless triggers
-        val potentialDestinations = effects.map { it.effect } + counters
-        if (potentialDestinations.none { it.canBeTriggeredBy(this) }) {
+        if (triggerableEffects.isEmpty() && !BoundCounters.anyCanBeTriggeredBy(this)) {
             return
         }
-        // Only dispatch placeholders.yml after we know we're going to dispatch
+
+        // Only dispatch placeholders after we know we're going to dispatch
         dispatch.generatePlaceholders()
 
         val dispatchEvent = TriggerDispatchEvent(dispatcher, dispatch)
@@ -112,17 +129,7 @@ abstract class Trigger(
             return
         }
 
-        // Filter out effects that can't be triggered by this trigger as an optimization
-        val triggerableEffects = mutableListOf<ProvidedEffectBlock>()
-
-        for (block in effects) {
-            if (block.effect.canBeTriggeredBy(this)) {
-                // Effects are already sorted by priority
-                triggerableEffects += block
-            }
-        }
-
-        // Only calculate placeholders.yml once per holder
+        // Only calculate placeholders once per holder
         val holderDispatches = mutableMapOf<ProvidedHolder, DispatchedTrigger>()
 
         for ((_, holder) in triggerableEffects) {
@@ -132,9 +139,7 @@ abstract class Trigger(
 
             val dispatchWithHolder = DispatchedTrigger(dispatcher, this, withHolder).inheritPlaceholders(dispatch)
 
-            holder.generatePlaceholders(dispatcher).forEach {
-                dispatchWithHolder.addPlaceholder(it)
-            }
+            dispatchWithHolder.addPlaceholders(holder.generatePlaceholders(dispatcher))
 
             holderDispatches[holder] = dispatchWithHolder
         }
@@ -156,7 +161,7 @@ abstract class Trigger(
         }
 
         // Probably a better way to work with counters, but this works for now.
-        for (counter in counters) {
+        for (counter in BoundCounters.values()) {
             counter.bindings.forEach { it.accept(dispatch) }
         }
     }

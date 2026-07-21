@@ -12,6 +12,17 @@ import org.bukkit.inventory.AnvilInventory
 import java.util.concurrent.ConcurrentHashMap
 
 object TriggerAnvilModify : Trigger("anvil_modify") {
+    override val description = "Fires when the player takes a modified item from an anvil."
+
+    override val categories = setOf("inventory")
+
+    override val additionalInfo = listOf("Requires Purpur to be installed.")
+
+    override val parameterDescriptions = mapOf(
+        TriggerParameter.ITEM to "The resulting item after the anvil operation.",
+        TriggerParameter.VALUE to "The experience level cost of the anvil operation."
+    )
+
     override val parameters = setOf(
         TriggerParameter.PLAYER,
         TriggerParameter.ITEM,

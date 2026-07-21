@@ -30,6 +30,8 @@ import com.willfp.libreforge.integrations.axplugins.axenvoy.AxEnvoyIntegration
 import com.willfp.libreforge.integrations.axplugins.axtrade.AxTradeIntegration
 import com.willfp.libreforge.integrations.bettermodel.BetterModelIntegration
 import com.willfp.libreforge.integrations.citizens.CitizensIntegration
+import com.willfp.libreforge.integrations.custom_blocks.craftengine.CraftEngineIntegration
+import com.willfp.libreforge.integrations.custom_blocks.itemsadder.ItemsAdderIntegration
 import com.willfp.libreforge.integrations.custom_blocks.nexo.NexoIntegration
 import com.willfp.libreforge.integrations.custom_blocks.oraxen.OraxenIntegration
 import com.willfp.libreforge.integrations.terra.TerraIntegration
@@ -55,7 +57,7 @@ import com.willfp.libreforge.integrations.vault.VaultIntegration
 import com.willfp.libreforge.integrations.votifier.VotifierIntegration
 import com.willfp.libreforge.integrations.worldguard.WorldGuardIntegration
 import com.willfp.libreforge.integrations.xiaomomiplugins.customcrops.CustomCropsIntegration
-import com.willfp.libreforge.integrations.arsmagica.pyrofishingpro.PyroFishingProIntegration
+import com.willfp.libreforge.integrations.pyrofishingpro.PyroFishingProIntegration
 import com.willfp.libreforge.integrations.xiaomomiplugins.customfishing.CustomFishingIntegration
 import com.willfp.libreforge.levels.LevelTypes
 import com.willfp.libreforge.mutators.Mutators
@@ -191,6 +193,8 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
     override fun createTasks() {
         dispatchedTriggerFactory.startTicking()
 
+        // Folia: poll on the global region thread; PlayerPollTask hops to each player's
+        // own region scheduler. Staggered across 20 ticks by UUID to avoid per-tick spikes.
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
             PlayerPollTask().run()
         }, 20L, 1L)
@@ -265,7 +269,9 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
             IntegrationLoader("EdPrison") { EdPrisonCoreIntegration.load(this) },
             IntegrationLoader("MythicMobs") { MythicMobsIntegration.load(this) },
             IntegrationLoader("Nexo") { NexoIntegration.load(this) },
-            IntegrationLoader("Oraxen") { OraxenIntegration.load(this)}
+            IntegrationLoader("Oraxen") { OraxenIntegration.load(this) },
+            IntegrationLoader("ItemsAdder") { ItemsAdderIntegration.load(this) },
+            IntegrationLoader("CraftEngine") { CraftEngineIntegration.load(this) }
         )
     }
 
@@ -300,7 +306,6 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
             for (player in Bukkit.getOnlinePlayers()) {
                 if ((player.uniqueId.leastSignificantBits.toInt() and Int.MAX_VALUE) % 20 != currentSlot) continue
                 if (skipAFKPlayers && AFKManager.isAfk(player)) continue
-
                 player.scheduler.run(
                     this@LibreforgeSpigotPlugin,
                     {

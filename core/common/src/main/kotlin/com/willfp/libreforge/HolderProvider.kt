@@ -1,7 +1,6 @@
 package com.willfp.libreforge
 
-import com.github.benmanes.caffeine.cache.Cache
-import com.github.benmanes.caffeine.cache.Caffeine
+import com.willfp.eco.core.cache.EcoCache
 import com.willfp.eco.core.map.listMap
 import com.willfp.libreforge.effects.EffectBlock
 import com.willfp.libreforge.slot.ItemHolderFinder
@@ -12,8 +11,8 @@ import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.HandlerList
 import java.util.UUID
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 
 /**
@@ -35,8 +34,8 @@ interface TypedHolderProvider<T : Holder> : HolderProvider {
 
 @Deprecated(
     "HolderProvideEvent now only fires when the holder set changes, not on every refresh. " +
-            "Use HolderEnableEvent and HolderDisableEvent to react to holder additions and removals. " +
-            "This event will be removed in a future version.",
+    "Use HolderEnableEvent and HolderDisableEvent to react to holder additions and removals. " +
+    "This event will be removed in a future version.",
     level = DeprecationLevel.WARNING
 )
 class HolderProvideEvent(
@@ -163,10 +162,10 @@ inline fun <reified T> registerSpecificRefreshFunction(crossinline function: (T)
     }
 }
 
-private val holderCooldown: Cache<UUID, Unit>? =
+private val holderCooldown: EcoCache<UUID, Unit>? =
     plugin.configYml.getInt("refresh.cooldown").takeIf { it > 0 }?.let {
-        Caffeine.newBuilder()
-            .expireAfterWrite(it.toLong(), TimeUnit.MILLISECONDS)
+        EcoCache.builder<UUID, Unit>()
+            .expireAfterWrite(Duration.ofMillis(it.toLong()))
             .build()
     }
 
@@ -175,7 +174,7 @@ private val holderCooldown: Cache<UUID, Unit>? =
  */
 fun Dispatcher<*>.refreshHolders() {
     if (holderCooldown != null) {
-        val isOnCooldown = holderCooldown.getIfPresent(this.uuid) != null
+        val isOnCooldown = holderCooldown.get(this.uuid) != null
         if (isOnCooldown) {
             return
         }
@@ -210,7 +209,7 @@ internal fun Dispatcher<*>.pollEffects() {
     // holder cache still reflects the outgoing item (heldItemSlot lags PlayerItemHeldEvent
     // by a tick). Polling now would recompute from that stale cache and re-add the outgoing
     // item's effects, re-opening the grief window. Skip; the imminent refresh will fix it.
-    if (mainhandRefreshPending.getIfPresent(this.uuid) != null) {
+    if (mainhandRefreshPending.get(this.uuid) != null) {
         return
     }
 
@@ -266,30 +265,14 @@ fun ProvidedHolder.generatePlaceholders(dispatcher: Dispatcher<*>): List<NamedVa
     }
 }
 
-private val previousHolders: com.github.benmanes.caffeine.cache.Cache<UUID, Collection<ProvidedHolder>> =
-    Caffeine.newBuilder()
-        .expireAfterAccess(30, TimeUnit.SECONDS)
+private val previousHolders: EcoCache<UUID, Collection<ProvidedHolder>> =
+    EcoCache.builder<UUID, Collection<ProvidedHolder>>()
+        .expireAfterAccess(Duration.ofSeconds(30))
         .build()
 
-private val holderCache = Caffeine.newBuilder()
-    .expireAfterWrite(4, TimeUnit.SECONDS)
-    .build<UUID, Collection<ProvidedHolder>>()
-
-// Players whose main-hand holders are mid-change: the hotbar slot changed and the
-// deferred refresh hasn't run yet. The periodic poll skips these players so it can't
-// re-add the outgoing item's effects from the stale holder cache during that window.
-// Self-expires well after the 1-tick deferred refresh settles the correct state.
-private val mainhandRefreshPending = Caffeine.newBuilder()
-    .expireAfterWrite(200, TimeUnit.MILLISECONDS)
-    .build<UUID, Unit>()
-
-/**
- * Mark that a main-hand slot change is in flight, so [pollEffects] skips this dispatcher
- * until the deferred refresh runs.
- */
-internal fun Dispatcher<*>.markMainhandRefreshPending() {
-    mainhandRefreshPending.put(this.uuid, Unit)
-}
+private val holderCache = EcoCache.builder<UUID, Collection<ProvidedHolder>>()
+    .expireAfterWrite(Duration.ofSeconds(4))
+    .build()
 
 private fun Dispatcher<*>.computeHolders(): Collection<ProvidedHolder> {
     if (this is EntityDispatcher && this.dispatcher !is Player && !plugin.configYml.getBool("refresh.entities.enabled")) {
@@ -298,7 +281,7 @@ private fun Dispatcher<*>.computeHolders(): Collection<ProvidedHolder> {
 
     val holders = providers.flatMap { it.provide(this) }
 
-    val old = previousHolders.getIfPresent(this.uuid) ?: emptyList()
+    val old = previousHolders.get(this.uuid) ?: emptyList()
 
     val newByID = holders.associateBy { it.holder.id }
     val oldByID = old.associateBy { it.holder.id }
@@ -328,6 +311,22 @@ private fun Dispatcher<*>.computeHolders(): Collection<ProvidedHolder> {
     }
 
     return holders
+}
+
+// Players whose main-hand holders are mid-change: the hotbar slot changed and the
+// deferred refresh hasn't run yet. The periodic poll skips these players so it can't
+// re-add the outgoing item's effects from the stale holder cache during that window.
+// Self-expires well after the 1-tick deferred refresh settles the correct state.
+private val mainhandRefreshPending = EcoCache.builder<UUID, Unit>()
+    .expireAfterWrite(Duration.ofMillis(200))
+    .build()
+
+/**
+ * Mark that a main-hand slot change is in flight, so [pollEffects] skips this dispatcher
+ * until the deferred refresh runs.
+ */
+internal fun Dispatcher<*>.markMainhandRefreshPending() {
+    mainhandRefreshPending.put(this.uuid, Unit)
 }
 
 /**

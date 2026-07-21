@@ -14,19 +14,31 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 object TriggerMeleeAttack : Trigger("melee_attack") {
+    override val description = "Fires when the player lands a melee hit on an entity."
+
+    override val categories = setOf("combat")
+
+    override val parameterDescriptions = mapOf(
+        TriggerParameter.VICTIM to "The entity that was hit.",
+        TriggerParameter.LOCATION to "The victim's location at the time of the hit.",
+        TriggerParameter.ITEM to "The item in the attacker's main hand.",
+        TriggerParameter.VALUE to "The damage dealt."
+    )
+
     override val parameters = setOf(
         TriggerParameter.PLAYER,
         TriggerParameter.VICTIM,
-        TriggerParameter.LOCATION,
         TriggerParameter.EVENT,
-        TriggerParameter.ITEM
+        TriggerParameter.LOCATION,
+        TriggerParameter.ITEM,
+        TriggerParameter.VALUE
     )
 
     // Guards against recursive re-entry on the same victim (e.g. an effect that deals damage
     // back). Thread-safe for Folia, where damage events fire on parallel region threads.
     private val processingEntities = ConcurrentHashMap.newKeySet<UUID>()
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     fun handle(event: EntityDamageByEntityEvent) {
         val attacker = event.damager as? LivingEntity ?: return
         val victim = event.entity as? LivingEntity ?: return

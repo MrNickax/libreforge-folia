@@ -94,7 +94,7 @@ abstract class ElementLike : ConfigurableElement {
         }
 
         // Initial injection into mutators
-        mutators.map { it.config }.forEach { it.addInjectablePlaceholder(trigger.placeholders) }
+        mutators.forEach { it.config.addInjectablePlaceholder(trigger.placeholders) }
 
         val data = mutators.mutate(trigger.data)
 
@@ -141,12 +141,14 @@ abstract class ElementLike : ConfigurableElement {
 
         var didTrigger = false
 
+        // Mutate data once (outside repeat loop) since input doesn't change between repeats
+        val mutatedData = mutators.mutate(trigger.data)
+
         fun trigger() {
             // Set to true if triggered.
             didTrigger = didTrigger or doTrigger(
                 trigger.copy(
-                    // Mutate again here for each repeat.
-                    data = mutators.mutate(trigger.data)
+                    data = mutatedData
                 )
             )
 
