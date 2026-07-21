@@ -74,7 +74,8 @@ object EffectAnimation : Effect<AnimationBlock<*, *>?>("animation") {
 
                     tick++
                 },
-                0,
+                // Folia requires an initial delay >= 1 tick.
+                1,
                 50
             )
         }

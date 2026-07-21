@@ -76,7 +76,9 @@ object AnimationSpinItem : Animation<NoCompileData, List<ArmorStand>>("spin_item
             val z = sin(armorStandAngle) * radius
 
             val armorStandLocation = sourceLocation.clone().add(x, 0.0, z)
-            armorStand.teleport(armorStandLocation.add(0.0,0.5, 0.0))
+            // Folia: entity teleports must go through teleportAsync (a sync teleport across
+            // a region boundary throws).
+            armorStand.teleportAsync(armorStandLocation.add(0.0, 0.5, 0.0))
             armorStand.rightArmPose = EulerAngle(0.0, armorStandAngle + Math.PI, 0.0) // Add PI to make the item point outwards
         }
 
