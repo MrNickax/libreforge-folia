@@ -2,6 +2,7 @@ package com.willfp.libreforge.effects.templates
 
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.eco.util.randDouble
+import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.Dispatcher
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.ProvidedHolder
@@ -17,7 +18,12 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 abstract class ChanceMultiplierEffect(id: String) : Effect<NoCompileData>(id) {
     override val arguments = arguments {
-        require("chance", "You must specify the chance!")
+        require(
+            "chance",
+            "You must specify the chance!",
+            description = "The percentage chance (0–100) for this effect to activate. Supports expressions.",
+            type = ArgType.EXPRESSION
+        )
     }
 
     private val modifiers = ConcurrentHashMap<UUID, CopyOnWriteArrayList<IdentifiedModifier>>()

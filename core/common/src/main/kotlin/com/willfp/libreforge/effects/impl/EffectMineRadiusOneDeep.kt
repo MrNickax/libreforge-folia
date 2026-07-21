@@ -1,9 +1,11 @@
 package com.willfp.libreforge.effects.impl
 
+import com.willfp.eco.core.blocks.Blocks
+import com.willfp.eco.core.blocks.matches
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.eco.core.integrations.antigrief.AntigriefManager
-import com.willfp.eco.util.containsIgnoreCase
 import com.willfp.eco.util.simplify
+import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
 import com.willfp.libreforge.effects.templates.MineBlockEffect
@@ -15,12 +17,57 @@ import org.bukkit.block.Block
 import kotlin.math.abs
 
 object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one_deep") {
+    override val description = "Mines blocks in a radius around the triggered block, only one layer deep in the direction the player is facing."
+    override val categories = setOf("world")
+
     override val parameters = setOf(
         TriggerParameter.PLAYER
     )
 
     override val arguments = arguments {
-        require("radius", "You must specify the radius to break!")
+        require(
+            "radius",
+            "You must specify the radius to break!",
+            description = "The radius of blocks to break in the flat layer. Supports expressions.",
+            type = ArgType.EXPRESSION,
+            example = "3 + %level% / 20"
+        )
+        optional(
+            "prevent_trigger",
+            description = "Whether breaking these blocks should prevent triggering further effects.",
+            type = ArgType.BOOLEAN,
+            default = "false"
+        )
+        optional(
+            "disable_on_sneak",
+            description = "Whether the effect should be disabled while the player is sneaking.",
+            type = ArgType.BOOLEAN,
+            default = "false"
+        )
+        optional(
+            "no_corners",
+            description = "Whether corner blocks at the edge of the radius should be excluded.",
+            type = ArgType.BOOLEAN,
+            default = "false"
+        )
+        optional(
+            "whitelist",
+            description = "A list of blocks that are allowed to be broken. If omitted, all blocks are eligible.",
+            type = ArgType.BLOCK_LIST,
+            default = "[]"
+        )
+        optional(
+            "blacklisted_blocks",
+            description = "A list of blocks that should never be broken by this effect.",
+            type = ArgType.BLOCK_LIST,
+            default = "[]"
+        )
+        optional(
+            "check_hardness",
+            description = "Whether blocks harder than the triggered block should be skipped.",
+            type = ArgType.BOOLEAN,
+            default = "true"
+        )
     }
 
     override fun onTrigger(config: Config, data: TriggerData, compileData: NoCompileData): Boolean {
@@ -29,11 +76,14 @@ object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one
 
         val radius = config.getIntFromExpression("radius", data)
 
+        val preventTriggers = config.getBool("prevent_trigger")
+
         if (player.isSneaking && config.getBool("disable_on_sneak")) {
             return false
         }
 
-        val whitelist = config.getStringsOrNull("whitelist")
+        val whitelist = config.getStringsOrNull("whitelist")?.map { Blocks.lookup(it) }
+        val blacklist = config.getStrings("blacklisted_blocks").map { Blocks.lookup(it) }
 
         val blocks = mutableSetOf<Block>()
 
@@ -42,7 +92,6 @@ object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one
         for (x in (-radius..radius)) {
             for (y in (-radius..radius)) {
                 for (z in (-radius..radius)) {
-                    // Jank
                     if (ignoreVector.x != 0.0 && x != 0) {
                         continue
                     }
@@ -54,7 +103,6 @@ object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one
                     if (ignoreVector.z != 0.0 && z != 0) {
                         continue
                     }
-                    // End Jank
 
                     if (x == 0 && y == 0 && z == 0) {
                         continue
@@ -81,23 +129,23 @@ object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one
                         continue
                     }
 
-                    if (config.getStrings("blacklisted_blocks").containsIgnoreCase(toBreak.type.name)) {
+                    if (blacklist.matches(toBreak)) {
                         continue
                     }
 
                     if (whitelist != null) {
-                        if (!whitelist.containsIgnoreCase(toBreak.type.name)) {
+                        if (!whitelist.matches(toBreak)) {
                             continue
                         }
                     }
 
                     if (config.getBoolOrNull("check_hardness") != false) {
-                        if (toBreak.type.hardness > block.type.hardness) {
+                        if (Blocks.hardness(toBreak) > Blocks.hardness(block)) {
                             continue
                         }
                     }
 
-                    if (toBreak.type.hardness < 0) {
+                    if (Blocks.hardness(toBreak) < 0) {
                         continue
                     }
 
@@ -114,7 +162,7 @@ object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one
             }
         }
 
-        player.breakBlocksSafely(blocks)
+        player.breakBlocksSafely(blocks, preventTriggers)
 
         return true
     }

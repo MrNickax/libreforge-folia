@@ -1,5 +1,6 @@
 package com.willfp.libreforge.integrations.auraskills.impl
 
+import com.willfp.eco.core.sound.PlayableSound
 import com.willfp.eco.util.NumberUtils
 import com.willfp.eco.util.PlayerUtils
 import com.willfp.eco.util.StringUtils
@@ -52,6 +53,6 @@ object ArgumentManaCost : EffectArgument<NoCompileData>("mana_cost") {
             player.sendMessage(message)
         }
 
-        playConfigSound(plugin.configYml.getSubsection("cannot-afford-type.sound"), player)
+        PlayableSound.create(plugin.configYml.getSubsection("cannot-afford-type.sound"))?.playTo(player)
     }
 }

@@ -7,7 +7,6 @@ import com.willfp.libreforge.GlobalDispatcher
 import com.willfp.libreforge.NamedValue
 import com.willfp.libreforge.ProvidedHolder
 import com.willfp.libreforge.getProvider
-import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.impl.TriggerBlank
 import org.bukkit.Location
 import org.bukkit.block.Block
@@ -94,16 +93,6 @@ class TriggerData(
         )
     }
 
-    /**
-     * Turn into a dispatched trigger for a [player].
-     */
-    @Deprecated(
-        "Use dispatch(dispatcher) instead",
-        ReplaceWith("dispatch(player.toDispatcher())"),
-        DeprecationLevel.ERROR
-    )
-    fun dispatch(player: Player) =
-        dispatch(player.toDispatcher())
 
     /**
      * Turn into a dispatched trigger for a new [dispatcher].
@@ -162,7 +151,21 @@ class TriggerData(
     }
 
     override fun equals(other: Any?): Boolean {
-        return other is TriggerData && other.hashCode() == this.hashCode()
+        if (this === other) return true
+        if (other !is TriggerData) return false
+        if (other.hashCode() != this.hashCode()) return false
+
+        return holder == other.holder
+                && player == other.player
+                && victim == other.victim
+                && block == other.block
+                && event == other.event
+                && location == other.location
+                && projectile == other.projectile
+                && velocity == other.velocity
+                && text == other.text
+                && value == other.value
+                && altValue == other.altValue
     }
 
     /*

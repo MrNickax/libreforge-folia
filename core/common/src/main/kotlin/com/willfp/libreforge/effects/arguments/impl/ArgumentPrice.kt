@@ -1,6 +1,7 @@
 package com.willfp.libreforge.effects.arguments.impl
 
 import com.willfp.eco.core.price.Prices
+import com.willfp.eco.core.sound.PlayableSound
 import com.willfp.eco.util.NumberUtils
 import com.willfp.eco.util.PlayerUtils
 import com.willfp.eco.util.StringUtils
@@ -73,6 +74,6 @@ object ArgumentPrice : EffectArgument<NoCompileData>("price") {
             player.sendMessage(message)
         }
 
-        playConfigSound(plugin.configYml.getSubsection("cannot-afford-type.sound"), player)
+        PlayableSound.create(plugin.configYml.getSubsection("cannot-afford-type.sound"))?.playTo(player)
     }
 }

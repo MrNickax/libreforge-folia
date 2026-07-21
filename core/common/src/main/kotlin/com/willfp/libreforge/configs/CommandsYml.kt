@@ -12,3 +12,4 @@ class CommandsYml(
     true,
     ConfigType.YAML
 )
+

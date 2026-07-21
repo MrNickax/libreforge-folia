@@ -12,12 +12,23 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.player.PlayerMoveEvent
 
 object TriggerChangeChunk : Trigger("change_chunk") {
+    override val description = "Fires when the player or a living entity moves into a different chunk."
+
+    override val categories = setOf("world", "movement")
+
+    override val parameterDescriptions = mapOf(
+        TriggerParameter.VICTIM to "The entity that changed chunk, if it is not a player.",
+        TriggerParameter.LOCATION to "The location that was moved to.",
+        TriggerParameter.VELOCITY to "The velocity of the entity.",
+        TriggerParameter.ITEM to "The item held in the main hand."
+    )
+
     override val parameters = setOf(
         TriggerParameter.PLAYER,
         TriggerParameter.VICTIM,
+        TriggerParameter.EVENT,
         TriggerParameter.LOCATION,
         TriggerParameter.VELOCITY,
-        TriggerParameter.EVENT,
         TriggerParameter.ITEM
     )
 
@@ -33,7 +44,7 @@ object TriggerChangeChunk : Trigger("change_chunk") {
             return
         }
 
-        if (event.to.chunk.chunkKey != event.from.chunk.chunkKey) {
+        if (event.to.chunk.chunkKey == event.from.chunk.chunkKey) {
             return
         }
 
@@ -58,7 +69,7 @@ object TriggerChangeChunk : Trigger("change_chunk") {
             }
         }
 
-        if (event.to.chunk.chunkKey != event.from.chunk.chunkKey) {
+        if (event.to.chunk.chunkKey == event.from.chunk.chunkKey) {
             return
         }
 

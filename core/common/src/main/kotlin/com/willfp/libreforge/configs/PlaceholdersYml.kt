@@ -12,3 +12,4 @@ class PlaceholdersYml(
     true,
     ConfigType.YAML
 )
+

@@ -3,9 +3,6 @@ package com.willfp.libreforge.triggers
 import com.willfp.eco.core.EcoPlugin
 import com.willfp.eco.core.map.listMap
 import com.willfp.libreforge.Dispatcher
-import com.willfp.libreforge.toDispatcher
-import org.bukkit.Bukkit
-import org.bukkit.entity.Player
 import java.util.UUID
 
 /*
@@ -19,14 +16,6 @@ class DispatchedTriggerFactory(
 ) {
     private val dispatcherTriggers = listMap<UUID, Int>()
 
-    @Deprecated(
-        "Use create(dispatcher, trigger, data) instead",
-        ReplaceWith("create(dispatcher, trigger, data)"),
-        DeprecationLevel.ERROR
-    )
-    fun create(player: Player, trigger: Trigger, data: TriggerData): DispatchedTrigger? {
-        return create(player.toDispatcher(), trigger, data)
-    }
 
     fun create(dispatcher: Dispatcher<*>, trigger: Trigger, data: TriggerData): DispatchedTrigger? {
         if (!trigger.isEnabled) {
@@ -34,24 +23,18 @@ class DispatchedTriggerFactory(
         }
 
         val hash = (trigger.hashCode() shl 5) xor data.hashCode()
-        val dispatcherUuid = dispatcher.uuid
-
-        // Initialize the entry if it doesn't exist, then check and add
-        val hashes = dispatcherTriggers.getOrPut(dispatcherUuid) { mutableListOf() }
-        if (hash in hashes) {
+        if (hash in dispatcherTriggers[dispatcher.uuid]) {
             return null
         }
 
-        hashes.add(hash)
-        return DispatchedTrigger(dispatcher, trigger, data.copy(dispatcher = dispatcher))
+        dispatcherTriggers[dispatcher.uuid].add(hash)
+        val dispatchData = if (data.dispatcher == dispatcher) data else data.copy(dispatcher = dispatcher)
+        return DispatchedTrigger(dispatcher, trigger, dispatchData)
     }
 
     internal fun startTicking() {
-        Bukkit.getGlobalRegionScheduler().runAtFixedRate(
-            plugin,
-            { dispatcherTriggers.clear() },
-            1L,
-            1L
-        )
+        plugin.scheduler.runTimer(1, 1) {
+            dispatcherTriggers.clear()
+        }
     }
 }
