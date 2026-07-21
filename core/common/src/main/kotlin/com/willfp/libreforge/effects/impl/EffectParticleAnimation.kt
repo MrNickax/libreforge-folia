@@ -78,7 +78,10 @@ object EffectParticleAnimation : Effect<ParticleAnimationBlock<*>?>("particle_an
 
         val args = config.getSubsection("particle_args")
 
-        plugin.runnableFactory.create {
+        // Folia: the animation reads the entity's location/direction each tick, so it must
+        // run on the entity's owning region. Use the entity scheduler so it follows the
+        // entity across regions.
+        entity.scheduler.runAtFixedRate(plugin, { task ->
             val entityVector = if (config.getBool("use-eye-location") && entity is LivingEntity) {
                 entity.eyeLocation.toFloat3()
             } else {
@@ -132,11 +135,11 @@ object EffectParticleAnimation : Effect<ParticleAnimationBlock<*>?>("particle_an
                         entity
                     )
                 }) {
-                it.cancel()
+                task.cancel()
             }
 
             tick++
-        }.runTaskTimerAsynchronously(1, 1)
+        }, null, 1L, 1L)
 
         return true
     }

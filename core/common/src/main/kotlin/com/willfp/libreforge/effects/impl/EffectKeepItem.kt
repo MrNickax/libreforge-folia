@@ -107,12 +107,13 @@ object EffectKeepItem : Effect<NoCompileData>("keep_item") {
 
     @EventHandler
     fun onRespawn(event: PlayerRespawnEvent) {
-        plugin.scheduler.run { restoreItems(event.player) }
+        // Folia: the player's inventory must be touched on the player's region.
+        event.player.scheduler.run(plugin, { restoreItems(event.player) }, null)
     }
 
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) {
-        plugin.scheduler.run { restoreItems(event.player) }
+        event.player.scheduler.run(plugin, { restoreItems(event.player) }, null)
     }
 
     private fun restoreItems(player: Player) {

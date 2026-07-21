@@ -8,6 +8,7 @@ import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.block.data.Ageable
 
 object EffectHarvestCrop : Effect<NoCompileData>("harvest_crop") {
@@ -35,7 +36,8 @@ object EffectHarvestCrop : Effect<NoCompileData>("harvest_crop") {
 
         block.drops.forEach { drop -> block.world.dropItemNaturally(block.location, drop) }
 
-        plugin.scheduler.run {
+        // Folia: block state must be mutated on the region that owns the block.
+        Bukkit.getRegionScheduler().run(plugin, block.location) { _ ->
             blockData.age = 0
             block.type = block.type
             block.blockData = blockData

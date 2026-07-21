@@ -40,10 +40,11 @@ object TriggerItemsAdderBlockItemDrop : Listener {
         val entry = PendingBreak(player.uniqueId, mutableListOf())
         pending[loc] = entry
 
-        plugin.scheduler.runLater(1) {
-            val break_ = pending.remove(loc) ?: return@runLater
+        // Folia: dropping items into the world must run on the region that owns the block.
+        Bukkit.getRegionScheduler().runDelayed(plugin, loc, { _ ->
+            val break_ = pending.remove(loc) ?: return@runDelayed
             processDrops(loc, break_.playerUuid, break_.items)
-        }
+        }, 1)
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)

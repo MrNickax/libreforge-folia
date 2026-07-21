@@ -40,10 +40,11 @@ object TriggerNexoBlockItemDrop : Listener {
         val loc = event.block.location
         pending[loc] = PendingBreak(player.uniqueId, mutableListOf())
 
-        plugin.scheduler.runLater(1) {
-            val pendingBreak = pending.remove(loc) ?: return@runLater
+        // Folia: dropping items into the world must run on the region that owns the block.
+        Bukkit.getRegionScheduler().runDelayed(plugin, loc, { _ ->
+            val pendingBreak = pending.remove(loc) ?: return@runDelayed
             processDrops(loc, pendingBreak.playerUuid, pendingBreak.items)
-        }
+        }, 1)
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

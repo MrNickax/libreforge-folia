@@ -46,13 +46,14 @@ object EffectSetVelocity : Effect<NoCompileData>("set_velocity") {
     override fun onTrigger(config: Config, data: TriggerData, compileData: NoCompileData): Boolean {
         val player = data.player ?: return false
 
-        plugin.scheduler.runLater(1) {
+        // Folia: entity velocity must be set on the entity's owning region.
+        player.scheduler.runDelayed(plugin, {
             player.velocity = Vector(
                 config.getDoubleFromExpression("x", data),
                 config.getDoubleFromExpression("y", data),
                 config.getDoubleFromExpression("z", data)
             )
-        }
+        }, null, 1)
 
         return true
     }
