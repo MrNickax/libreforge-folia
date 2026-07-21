@@ -73,6 +73,13 @@ object ItemRefreshListener : Listener {
 
         val dispatcher = player.toDispatcher()
 
+        // Immediately disable main-hand effects so a stale held-item enchant (e.g. blast
+        // mining) can't fire against the newly-selected item during the 1-tick window
+        // before the deferred refresh runs. The refresh re-enables them if still held.
+        // markMainhandRefreshPending keeps the periodic poll from re-adding them meanwhile.
+        dispatcher.markMainhandRefreshPending()
+        dispatcher.disableMainhandEffects()
+
         player.scheduler.runDelayed(
             plugin,
             {

@@ -5,6 +5,8 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import com.willfp.eco.core.map.listMap
 import com.willfp.libreforge.effects.EffectBlock
 import com.willfp.libreforge.slot.ItemHolderFinder
+import com.willfp.libreforge.slot.SlotItemProvidedHolder
+import com.willfp.libreforge.slot.impl.SlotTypeMainhand
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.Event
@@ -204,6 +206,14 @@ fun Dispatcher<*>.forceRefreshHolders() {
  * or [forceRefreshHolders] which explicitly invalidate the cache.
  */
 internal fun Dispatcher<*>.pollEffects() {
+    // A main-hand slot change is in flight: the deferred refresh hasn't run yet and the
+    // holder cache still reflects the outgoing item (heldItemSlot lags PlayerItemHeldEvent
+    // by a tick). Polling now would recompute from that stale cache and re-add the outgoing
+    // item's effects, re-opening the grief window. Skip; the imminent refresh will fix it.
+    if (mainhandRefreshPending.getIfPresent(this.uuid) != null) {
+        return
+    }
+
     refreshFunctions.forEach { it(this) }
     this.updateEffects()
 }
@@ -264,6 +274,22 @@ private val previousHolders: com.github.benmanes.caffeine.cache.Cache<UUID, Coll
 private val holderCache = Caffeine.newBuilder()
     .expireAfterWrite(4, TimeUnit.SECONDS)
     .build<UUID, Collection<ProvidedHolder>>()
+
+// Players whose main-hand holders are mid-change: the hotbar slot changed and the
+// deferred refresh hasn't run yet. The periodic poll skips these players so it can't
+// re-add the outgoing item's effects from the stale holder cache during that window.
+// Self-expires well after the 1-tick deferred refresh settles the correct state.
+private val mainhandRefreshPending = Caffeine.newBuilder()
+    .expireAfterWrite(200, TimeUnit.MILLISECONDS)
+    .build<UUID, Unit>()
+
+/**
+ * Mark that a main-hand slot change is in flight, so [pollEffects] skips this dispatcher
+ * until the deferred refresh runs.
+ */
+internal fun Dispatcher<*>.markMainhandRefreshPending() {
+    mainhandRefreshPending.put(this.uuid, Unit)
+}
 
 private fun Dispatcher<*>.computeHolders(): Collection<ProvidedHolder> {
     if (this is EntityDispatcher && this.dispatcher !is Player && !plugin.configYml.getBool("refresh.entities.enabled")) {
@@ -419,6 +445,41 @@ fun Dispatcher<*>.updateEffects() {
     }
 }
 
+
+/**
+ * Immediately disable active effects provided by the main-hand item, without a full
+ * holder rescan.
+ *
+ * Used on hotbar slot change: the held-item refresh is deferred by 1 tick (because
+ * PlayerItemHeldEvent fires before heldItemSlot updates, so an immediate rescan would
+ * still read the old slot). During that window the cached active-effect set still holds
+ * the outgoing item's effects, so a mine_block-triggered enchant (e.g. blast mining)
+ * could fire against the newly-selected item and grief a 3x3 area.
+ *
+ * Disabling the main-hand effects the instant the slot changes closes that window. The
+ * deferred [refreshHolders] re-enables them if the enchantment is still held.
+ */
+fun Dispatcher<*>.disableMainhandEffects() {
+    val lock = updateEffectLocks.computeIfAbsent(this.uuid) { Any() }
+
+    synchronized(lock) {
+        val before = this.providedActiveEffects
+        val (mainhand, rest) = before.partition {
+            val holder = it.holder
+            holder is SlotItemProvidedHolder<*> && holder.slotType == SlotTypeMainhand
+        }
+
+        if (mainhand.isEmpty()) {
+            return
+        }
+
+        previousStates[this.uuid] = rest
+
+        for ((effect, holder) in mainhand.sorted()) {
+            effect.disable(this, holder)
+        }
+    }
+}
 
 /**
  * Removes all elements from the given [other] list that are contained in this list.
