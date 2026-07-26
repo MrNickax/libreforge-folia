@@ -117,12 +117,24 @@ object EffectHoming : Effect<List<TestableEntity>>("homing") {
                     val vector = entity.eyeLocation.toFloat3() - arrow.location.toFloat3()
                     val normalized = vector.normalize()
 
-                    if (arrow.location.world.rayTraceBlocks(
-                            arrow.location,
-                            normalized.toVector(),
-                            dist.toDouble()
-                        )?.hitBlock?.isLiquid == false
-                    ) {
+                    // Folia/Canvas: gate the block ray-trace on region ownership so it is never
+                    // invoked when the ray reaches into a neighbouring region (moonrise's
+                    // tick-thread check would log-then-throw). A cross-region ray degrades to the
+                    // same "no hit" outcome as a normal miss (null result -> the `== false` check
+                    // is false -> we do not `continue`, so homing proceeds).
+                    val rayOrigin = arrow.location.clone().apply { direction = normalized.toVector() }
+                    val blockRay =
+                        if (rayIsRegionLocal(rayOrigin, dist.toDouble(), 0)) {
+                            arrow.location.world.rayTraceBlocks(
+                                arrow.location,
+                                normalized.toVector(),
+                                dist.toDouble()
+                            )
+                        } else {
+                            null
+                        }
+
+                    if (blockRay?.hitBlock?.isLiquid == false) {
                         continue
                     }
 

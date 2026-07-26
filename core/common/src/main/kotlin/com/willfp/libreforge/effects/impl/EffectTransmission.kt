@@ -7,6 +7,7 @@ import com.willfp.libreforge.arguments
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.plugin
+import com.willfp.libreforge.rayIsRegionLocal
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
 
@@ -40,7 +41,16 @@ object EffectTransmission : Effect<NoCompileData>("transmission") {
         var location = player.eyeLocation.clone()
             .add(movement)
 
-        val ray = player.rayTraceBlocks(distance)
+        // Folia/Canvas: gate the block ray-trace on region ownership so it is never invoked
+        // when the ray reaches into a neighbouring region (moonrise's tick-thread check would
+        // log-then-throw). A cross-region ray degrades to the same "no hit" outcome as a normal
+        // miss (null ray -> location stays the straight-line forward projection computed above).
+        val ray =
+            if (rayIsRegionLocal(player.eyeLocation, distance, 0)) {
+                player.rayTraceBlocks(distance)
+            } else {
+                null
+            }
 
         if (ray != null) {
             val hitBlock = ray.hitBlock ?: return false

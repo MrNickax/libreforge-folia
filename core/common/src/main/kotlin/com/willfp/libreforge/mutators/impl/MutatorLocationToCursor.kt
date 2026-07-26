@@ -7,6 +7,7 @@ import com.willfp.libreforge.arguments
 import com.willfp.libreforge.mutators.Mutator
 import com.willfp.libreforge.mutators.parameterTransformers
 import com.willfp.libreforge.plugin
+import com.willfp.libreforge.rayIsRegionLocal
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.FluidCollisionMode
@@ -54,15 +55,26 @@ object MutatorLocationToCursor : Mutator<NoCompileData>("location_to_cursor") {
             data.victim
         }
 
-        val result = start?.world?.rayTrace(
-            start.location,
-            start.eyeLocation.direction,
-            plugin.configYml.getDouble("raytrace-distance"),
-            FluidCollisionMode.NEVER,
-            true,
-            0.0,
+        val world = start?.world ?: return data.copy(location = null)
+        val distance = plugin.configYml.getDouble("raytrace-distance")
+
+        // Folia/Canvas: this ray-trace resolves entities as well as blocks (Level.getEntities),
+        // so gate it on region ownership with a 1-chunk radius (matching TriggerAltClick's entity
+        // ray). When the ray reaches into a neighbouring region we skip the call and degrade to the
+        // same "no hit" outcome the code already produces (null location).
+        val result = if (rayIsRegionLocal(start.location, distance, 1)) {
+            world.rayTrace(
+                start.location,
+                start.eyeLocation.direction,
+                distance,
+                FluidCollisionMode.NEVER,
+                true,
+                0.0,
+                null
+            )
+        } else {
             null
-        ) ?: return data.copy(location = null)
+        } ?: return data.copy(location = null)
 
         val location = when {
             target.equals("block", true) -> result.hitBlock?.location
