@@ -4,6 +4,7 @@ import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
+import com.willfp.libreforge.canBeDamagedBy
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.getOrNull
@@ -59,6 +60,10 @@ object EffectSoulRip : Effect<NoCompileData>("soul_rip") {
 
         var totalHeal = 0.0
         for (entity in targets) {
+            if (!entity.canBeDamagedBy(player)) {
+                continue
+            }
+
             totalHeal += minOf(damage, entity.health)
             entity.damage(damage)
         }

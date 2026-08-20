@@ -1,5 +1,6 @@
 package com.willfp.libreforge.triggers.impl
 
+import com.willfp.libreforge.canBeDamagedBy
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
@@ -35,10 +36,18 @@ object TriggerProjectileHit : Trigger("projectile_hit") {
         TriggerParameter.VELOCITY
     )
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun handle(event: ProjectileHitEvent) {
         val projectile = event.entity
         val shooter = projectile.shooter as? LivingEntity ?: return
+
+        // Protection plugins cancel the EntityDamageByEntityEvent that follows the hit, never
+        // ProjectileHitEvent itself, so a cancelled shot would still fire this trigger. Gate the
+        // entity case on the antigrief integrations instead.
+        val hitEntity = event.hitEntity
+        if (hitEntity is LivingEntity && !hitEntity.canBeDamagedBy(shooter as? Player)) {
+            return
+        }
 
         this.dispatch(
             shooter.toDispatcher(),

@@ -5,6 +5,7 @@ import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
+import com.willfp.libreforge.canBeDamagedBy
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.getIntFromExpression
@@ -59,7 +60,11 @@ object EffectBleed : Effect<NoCompileData>("bleed") {
             {
                 current++
 
-                val killed = damage >= victim.health
+                // Re-checked every tick: the victim can walk into a protected region partway
+                // through bleeding, and this damage has no damager for protection plugins to see.
+                val blocked = !victim.canBeDamagedBy(data.player)
+
+                val killed = !blocked && damage >= victim.health
 
                 if (killed) {
                     if (Prerequisite.HAS_PAPER.isMet) {
@@ -74,9 +79,11 @@ object EffectBleed : Effect<NoCompileData>("bleed") {
                     }
                 }
 
-                victim.damage(damage)
+                if (!blocked) {
+                    victim.damage(damage)
+                }
 
-                if (current >= amount || killed) {
+                if (blocked || current >= amount || killed) {
                     it.cancel()
                 }
             },

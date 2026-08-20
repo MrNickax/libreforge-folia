@@ -7,6 +7,7 @@ import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 
@@ -29,7 +30,8 @@ object TriggerShieldBlock : Trigger("shield_block") {
         TriggerParameter.VALUE
     )
 
-    @EventHandler(ignoreCancelled = true)
+    // HIGHEST so protection plugins, which cancel at NORMAL, have already had their say.
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun handle(event: EntityDamageByEntityEvent) {
         val attacker = event.damager as? LivingEntity ?: return
         val victim = event.entity as? Player ?: return

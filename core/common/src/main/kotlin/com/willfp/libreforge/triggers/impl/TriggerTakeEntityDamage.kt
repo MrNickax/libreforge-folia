@@ -10,6 +10,7 @@ import io.lumine.mythic.bukkit.MythicBukkit
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 
@@ -21,7 +22,8 @@ object TriggerTakeEntityDamage : Trigger("take_entity_damage") {
         TriggerParameter.EVENT
     )
 
-    @EventHandler(ignoreCancelled = true)
+    // HIGHEST so protection plugins, which cancel at NORMAL, have already had their say.
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun handle(event: EntityDamageByEntityEvent) {
         val attacker = event.damager.tryAsLivingEntity() ?: return
 

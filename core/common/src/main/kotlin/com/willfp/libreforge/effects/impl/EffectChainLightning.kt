@@ -4,6 +4,7 @@ import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
+import com.willfp.libreforge.canBeDamagedBy
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.getIntFromExpression
@@ -55,6 +56,10 @@ object EffectChainLightning : Effect<NoCompileData>("chain_lightning") {
         var current = startVictim
 
         repeat(jumps) {
+            if (!current.canBeDamagedBy(player)) {
+                return true
+            }
+
             hit.add(current)
             current.world.strikeLightningEffect(current.location)
             current.damage(damage)

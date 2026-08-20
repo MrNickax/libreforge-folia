@@ -4,6 +4,7 @@ import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
+import com.willfp.libreforge.damageFrom
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.triggers.TriggerData
@@ -33,7 +34,6 @@ object EffectReflect : Effect<NoCompileData>("reflect") {
         val event = data.event as? EntityDamageByEntityEvent ?: return false
         val attacker = event.damager as? LivingEntity ?: return false
         val reflected = event.finalDamage * config.getDoubleFromExpression("multiplier", data)
-        attacker.damage(reflected)
-        return true
+        return attacker.damageFrom(reflected, data.player)
     }
 }

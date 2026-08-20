@@ -5,6 +5,7 @@ import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
+import com.willfp.libreforge.canBeDamagedBy
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.triggers.TriggerData
@@ -44,6 +45,12 @@ object EffectDamageVictim : Effect<NoCompileData>("damage_victim") {
     override fun onTrigger(config: Config, data: TriggerData, compileData: NoCompileData): Boolean {
         val victim = data.victim ?: return false
         val player = data.player
+
+        // true_damage and use_source: false both bypass the damage event that protection plugins
+        // listen to, so they have to be gated on the antigrief integrations directly.
+        if (!victim.canBeDamagedBy(player)) {
+            return false
+        }
 
         val damage = config.getDoubleFromExpression("damage", data)
 

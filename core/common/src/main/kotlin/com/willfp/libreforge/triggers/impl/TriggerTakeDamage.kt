@@ -9,6 +9,7 @@ import com.willfp.libreforge.triggers.tryAsLivingEntity
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 
@@ -39,7 +40,11 @@ object TriggerTakeDamage : Trigger("take_damage") {
         EntityDamageEvent.DamageCause.KILL
     )
 
-    @EventHandler(ignoreCancelled = true)
+    // HIGHEST, not the default NORMAL: protection plugins cancel damage at NORMAL, and same-priority
+    // handlers run in registration order, so at NORMAL this would fire before the cancel roughly
+    // half the time. HIGHEST rather than MONITOR because effects on this trigger modify the event
+    // (cancel_event, damage_multiplier).
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun handle(event: EntityDamageEvent) {
         if (event.cause in ignoredCauses) return
         // If Damager (or Projectile Shooter) is MythicMob, then skip. Use 'take_mythic_damage' instead.
