@@ -29,6 +29,7 @@ import org.bukkit.event.block.BlockDropItemEvent
 import org.bukkit.event.player.PlayerFishEvent
 import org.bukkit.event.player.PlayerShearEntityEvent
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 object EffectTelekinesis : Effect<NoCompileData>("telekinesis") {
     override val description = "Automatically sends all drops and XP from blocks, entities, and fishing directly to the player's inventory."
@@ -44,6 +45,7 @@ object EffectTelekinesis : Effect<NoCompileData>("telekinesis") {
     }
 
     private val players = listMap<UUID, UUID>()
+    private val pendingExperience = ConcurrentHashMap<UUID, Int>()
     private var allowTamedMobKills: Boolean = false
 
     override fun onEnable(
@@ -88,11 +90,13 @@ object EffectTelekinesis : Effect<NoCompileData>("telekinesis") {
             .push()
     }
 
-    @EventHandler(
-        priority = EventPriority.HIGH,
-        ignoreCancelled = true
-    )
-    fun handle(event: BlockBreakEvent) {
+    // Claimed at LOWEST and granted at MONITOR rather than taken in a single pass at HIGH.
+    // Plugins that take over a block's drops - block regeneration plugins in particular - read
+    // expToDrop at the top of their own HIGH handler and re-spawn the experience themselves, so
+    // a single handler here wins or loses purely on plugin registration order. Claiming the
+    // amount at LOWEST settles that: whoever reads it afterwards reads zero and spawns nothing.
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    fun claimExperience(event: BlockBreakEvent) {
         val player = event.player
         val block = event.block
 
@@ -111,14 +115,38 @@ object EffectTelekinesis : Effect<NoCompileData>("telekinesis") {
         // Filter out telekinesis spawner xp to prevent dupe
         if (block.type == Material.SPAWNER) {
             event.expToDrop = 0
+            return
+        }
+
+        pendingExperience[player.uniqueId] = event.expToDrop
+        event.expToDrop = 0
+    }
+
+    // Not ignoreCancelled: the claim has to be dropped on a cancelled break too, otherwise it
+    // would survive until the player's next one, and granting it would turn any handler that
+    // cancels the break into a free experience farm. Whatever other handlers added to expToDrop
+    // after the claim is picked up here so their contribution is not lost.
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun handle(event: BlockBreakEvent) {
+        val player = event.player
+
+        val claimed = pendingExperience.remove(player.uniqueId) ?: return
+
+        if (event.isCancelled) {
+            return
+        }
+
+        val total = claimed + event.expToDrop
+        event.expToDrop = 0
+
+        if (total <= 0) {
+            return
         }
 
         DropQueue(player)
-            .setLocation(block.location)
-            .addXP(event.expToDrop)
+            .setLocation(event.block.location)
+            .addXP(total)
             .push()
-
-        event.expToDrop = 0
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
