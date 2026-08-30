@@ -14,10 +14,11 @@ import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.Material
 import org.bukkit.block.Block
+import org.bukkit.util.Vector
 import kotlin.math.abs
 
 object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one_deep") {
-    override val description = "Mines blocks in a radius around the triggered block, only one layer deep in the direction the player is facing."
+    override val description = "Mines blocks in a radius around the triggered block, only one layer deep. The layer is aligned to the direction the player is facing, or always flat if plane is set to horizontal."
     override val categories = setOf("world")
 
     override val parameters = setOf(
@@ -68,6 +69,14 @@ object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one
             type = ArgType.BOOLEAN,
             default = "true"
         )
+        optional(
+            "plane",
+            description = "The orientation of the flat layer. 'facing' aligns it to the direction the " +
+                    "player is looking, 'horizontal' always uses the flat layer at the triggered block's Y.",
+            type = ArgType.STRING,
+            default = "facing",
+            choices = listOf("facing", "horizontal")
+        )
     }
 
     override fun onTrigger(config: Config, data: TriggerData, compileData: NoCompileData): Boolean {
@@ -87,7 +96,10 @@ object EffectMineRadiusOneDeep : MineBlockEffect<NoCompileData>("mine_radius_one
 
         val blocks = mutableSetOf<Block>()
 
-        val ignoreVector = player.location.direction.simplify()
+        val ignoreVector = when (config.getStringOrNull("plane")?.lowercase()) {
+            "horizontal" -> Vector(0.0, 1.0, 0.0)
+            else -> player.location.direction.simplify()
+        }
 
         for (x in (-radius..radius)) {
             for (y in (-radius..radius)) {
