@@ -195,8 +195,11 @@ class LibreforgeSpigotPlugin : EcoPlugin() {
 
         // Folia: poll on the global region thread; PlayerPollTask hops to each player's
         // own region scheduler. Staggered across 20 ticks by UUID to avoid per-tick spikes.
+        // One task for the lifetime of the plugin: its slot is what rotates through the players,
+        // and a new task every tick started from slot 0 every time.
+        val playerPollTask = PlayerPollTask()
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, { _ ->
-            PlayerPollTask().run()
+            playerPollTask.run()
         }, 20L, 1L)
 
         if (configYml.getBool("refresh.entities.enabled")) {

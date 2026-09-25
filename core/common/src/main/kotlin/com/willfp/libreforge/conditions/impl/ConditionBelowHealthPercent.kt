@@ -8,6 +8,7 @@ import com.willfp.libreforge.ArgType
 import com.willfp.libreforge.arguments
 import com.willfp.libreforge.conditions.Condition
 import com.willfp.libreforge.get
+import com.willfp.libreforge.plugin
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.updateEffects
 import org.bukkit.attribute.Attribute
@@ -46,13 +47,17 @@ object ConditionBelowHealthPercent : Condition<NoCompileData>("below_health_perc
         return health / maxHealth <= config.getDoubleFromExpression("percent", livingEntity as? Player) / 100
     }
 
+    // Both events fire before the health changes, so the check is made again a tick later, on the
+    // entity's own thread, when isMet reads the health the entity actually has.
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun handle(event: EntityRegainHealthEvent) {
-        event.entity.toDispatcher().updateEffects()
+        val entity = event.entity
+        entity.scheduler.run(plugin, { entity.toDispatcher().updateEffects() }, {})
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun handle(event: EntityDamageEvent) {
-        event.entity.toDispatcher().updateEffects()
+        val entity = event.entity
+        entity.scheduler.run(plugin, { entity.toDispatcher().updateEffects() }, {})
     }
 }

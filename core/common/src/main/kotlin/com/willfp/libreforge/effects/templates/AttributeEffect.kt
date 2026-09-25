@@ -8,6 +8,7 @@ import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.effects.Identifiers
 import com.willfp.libreforge.get
 import com.willfp.libreforge.plugin
+import org.bukkit.Bukkit
 import org.bukkit.attribute.Attribute
 import org.bukkit.attribute.AttributeInstance
 import org.bukkit.attribute.AttributeModifier
@@ -35,6 +36,23 @@ abstract class AttributeEffect(
         // Override this to constrain the attribute value, e.g. to set health below max health.
     }
 
+    /**
+     * Runs an attribute change on the thread that owns the entity: straight away when already on it,
+     * and through the entity's scheduler only when not.
+     *
+     * A reload disables an effect and enables it again in the same call. Deferring only the enable
+     * left the modifier off for a tick every time, which players saw as their speed (and field of
+     * view) flickering whenever they switched items. Both directions go through here, so a change
+     * that does have to be deferred keeps its order.
+     */
+    private fun LivingEntity.onOwnerThread(action: () -> Unit) {
+        if (Bukkit.isOwnedByCurrentRegion(this)) {
+            action()
+        } else {
+            this.scheduler.run(plugin, { action() }, {})
+        }
+    }
+
     override fun onEnable(
         dispatcher: Dispatcher<*>,
         config: Config,
@@ -48,8 +66,8 @@ abstract class AttributeEffect(
             return
         }
 
-        entity.scheduler.run(plugin, {
-            val instance = entity.getAttribute(attribute) ?: return@run
+        entity.onOwnerThread {
+            val instance = entity.getAttribute(attribute) ?: return@onOwnerThread
             val modifierName = "libreforge:${this.id} - ${identifiers.key.key} (${holder.holder.id})"
 
             instance.clean(modifierName, identifiers)
@@ -63,7 +81,7 @@ abstract class AttributeEffect(
 
             instance.removeModifier(modifier)
             instance.addModifier(modifier)
-        }, {})
+        }
     }
 
     override fun onDisable(dispatcher: Dispatcher<*>, identifiers: Identifiers, holder: ProvidedHolder) {
@@ -73,26 +91,28 @@ abstract class AttributeEffect(
             return
         }
 
-        val instance = entity.getAttribute(attribute) ?: return
-        val modifierName = "libreforge:${this.id} - ${identifiers.key.key} (${holder.holder.id})"
+        entity.onOwnerThread {
+            val instance = entity.getAttribute(attribute) ?: return@onOwnerThread
+            val modifierName = "libreforge:${this.id} - ${identifiers.key.key} (${holder.holder.id})"
 
-        instance.clean(modifierName, identifiers)
+            instance.clean(modifierName, identifiers)
 
-        instance.removeModifier(
-            attributeModifier(
-                identifiers,
-                modifierName,
-                0.0,
-                operation
+            instance.removeModifier(
+                attributeModifier(
+                    identifiers,
+                    modifierName,
+                    0.0,
+                    operation
+                )
             )
-        )
 
-        // Run on next tick to prevent constraining to the lower value during reloads.
-        entity.scheduler.run(
-            plugin,
-            { constrainAttribute(entity, instance.value) },
-            {}
-        )
+            // Run on next tick to prevent constraining to the lower value during reloads.
+            entity.scheduler.run(
+                plugin,
+                { constrainAttribute(entity, instance.value) },
+                {}
+            )
+        }
     }
 
     private fun attributeModifier(

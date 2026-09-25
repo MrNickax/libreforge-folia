@@ -421,21 +421,25 @@ fun Dispatcher<*>.updateEffects() {
         val added = (after without before).sorted()
         val removed = (before without after).sorted()
 
-        for ((effect, holder) in removed) {
-            effect.disable(this, holder)
-        }
-
-        for ((effect, holder) in added) {
-            effect.enable(this, holder)
-        }
-
         // Reloading is now done by disabling all, then enabling all. Effect#reload is deprecated.
         // Since permanent effects are not allowed in chains, they are always done in the correct
         // order as mixing weights is not a concern.
         val toReload = (after without added).sorted()
 
+        // Every disable before any enable. An effect's key comes from a per-dispatcher counter that a
+        // disable counts down and an enable counts up, so enabling what was added before the reload
+        // counted down made the reload remove the new effect's modifier and put the old one back under
+        // its key: two speed enchantments on one pair of boots came out as the first one twice.
+        for ((effect, holder) in removed) {
+            effect.disable(this, holder)
+        }
+
         for ((effect, holder) in toReload) {
             effect.disable(this, holder, isReload = true)
+        }
+
+        for ((effect, holder) in added) {
+            effect.enable(this, holder)
         }
 
         for ((effect, holder) in toReload) {
