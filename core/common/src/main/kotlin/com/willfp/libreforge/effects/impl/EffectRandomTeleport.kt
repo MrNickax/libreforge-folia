@@ -1,6 +1,5 @@
 package com.willfp.libreforge.effects.impl
 
-import com.willfp.eco.core.Prerequisite
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.eco.util.NumberUtils
 import com.willfp.libreforge.ArgType
@@ -8,9 +7,11 @@ import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.arguments
 import com.willfp.libreforge.getIntFromExpression
 import com.willfp.libreforge.getOrNull
+import com.willfp.libreforge.safeTeleportAsync
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 
 object EffectRandomTeleport : Effect<NoCompileData>("random_teleport") {
     override val description = "Teleports the player to a random location within a radius, landing on the highest safe block."
@@ -54,15 +55,18 @@ object EffectRandomTeleport : Effect<NoCompileData>("random_teleport") {
 
         loc.x += offsetX
         loc.z += offsetZ
+
+        // Folia: the landing column can only be read from the thread that owns it. One outside
+        // this region (or not loaded at all) is skipped rather than read cross-region.
+        if (!Bukkit.isOwnedByCurrentRegion(loc)) {
+            return false
+        }
+
         loc.y = world.getHighestBlockYAt(loc).toDouble() + 1
 
         if (loc.y < world.minHeight || loc.y > world.maxHeight) return false
 
-        if (Prerequisite.HAS_PAPER.isMet) {
-            player.teleportAsync(loc)
-        } else {
-            player.teleport(loc)
-        }
+        player.safeTeleportAsync(loc)
 
         return true
     }

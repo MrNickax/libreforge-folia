@@ -6,6 +6,7 @@ import com.willfp.libreforge.arguments
 import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.plugin
+import com.willfp.libreforge.safeTeleportAsync
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
 import org.bukkit.Bukkit
@@ -35,7 +36,7 @@ object EffectTraceback : Effect<NoCompileData>("traceback") {
 
         val location = times.getOrElse(index) { times.lastOrNull() } ?: return false
 
-        player.teleportAsync(location)
+        player.safeTeleportAsync(location)
 
         return true
     }

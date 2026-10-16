@@ -8,8 +8,10 @@ import com.willfp.libreforge.effects.Effect
 import com.willfp.libreforge.getDoubleFromExpression
 import com.willfp.libreforge.plugin
 import com.willfp.libreforge.rayIsRegionLocal
+import com.willfp.libreforge.safeTeleportAsync
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 
 object EffectTransmission : Effect<NoCompileData>("transmission") {
     override val description = "Teleports the player forward by a given distance, stopping at the first solid block in the path."
@@ -60,7 +62,13 @@ object EffectTransmission : Effect<NoCompileData>("transmission") {
                 .add(0.5, 0.5 - player.eyeHeight, 0.5)
         }
 
-        if (location.block.isSolid || location.toVector().distance(player.location.toVector()) < 0.5) {
+        // Folia: a destination outside this region can't have its block read from here (a
+        // cross-region ray leaves the straight-line projection), so it counts as blocked.
+        if (
+            !Bukkit.isOwnedByCurrentRegion(location)
+            || location.block.isSolid
+            || location.toVector().distance(player.location.toVector()) < 0.5
+        ) {
             @Suppress("UsagesOfObsoleteApi")
             player.sendMessage(plugin.langYml.getFormattedString("messages.cannot-transmit"))
             return false
@@ -69,7 +77,7 @@ object EffectTransmission : Effect<NoCompileData>("transmission") {
         location.pitch = player.location.pitch
         location.yaw = player.location.yaw
 
-        player.teleportAsync(location);
+        player.safeTeleportAsync(location)
 
         return true
     }

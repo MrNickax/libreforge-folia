@@ -1,6 +1,7 @@
 package com.willfp.libreforge.integrations.axplugins.axtrade.impl
 
 import com.artillexstudios.axtrade.api.events.AxTradeCompleteEvent
+import com.willfp.libreforge.runOnOwnerThread
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
@@ -50,27 +51,33 @@ object TriggerPlayerTrade : Trigger("player_trade") {
 
         // Kept victim logic so that effects can be run based on victim_conditions.
         // Could allow for more complex effect systems where affects are run if player has perm, and victim has perm.
-        this.dispatch(
-            player1.toDispatcher(),
-            TriggerData(
-                player = player1,
-                victim = player2,
-                item = mergedItem,
-                value = totalAmount.toDouble(),
-                altValue = totalCurrency
+        // Folia: each player's effects run on the thread that owns that player; the two traders
+        // can be in different regions, and the trade completes on only one of them.
+        player1.runOnOwnerThread {
+            this.dispatch(
+                player1.toDispatcher(),
+                TriggerData(
+                    player = player1,
+                    victim = player2,
+                    item = mergedItem,
+                    value = totalAmount.toDouble(),
+                    altValue = totalCurrency
+                )
             )
-        )
+        }
 
-        this.dispatch(
-            player2.toDispatcher(),
-            TriggerData(
-                player = player2,
-                victim = player1,
-                item = mergedItem,
-                value = totalAmount.toDouble(),
-                altValue = totalCurrency
+        player2.runOnOwnerThread {
+            this.dispatch(
+                player2.toDispatcher(),
+                TriggerData(
+                    player = player2,
+                    victim = player1,
+                    item = mergedItem,
+                    value = totalAmount.toDouble(),
+                    altValue = totalCurrency
+                )
             )
-        )
+        }
     }
 
     private fun sumCurrencies(event: AxTradeCompleteEvent): Double {

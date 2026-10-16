@@ -3,8 +3,10 @@ package com.willfp.libreforge.effects.impl
 import com.willfp.eco.core.config.interfaces.Config
 import com.willfp.libreforge.NoCompileData
 import com.willfp.libreforge.effects.Effect
+import com.willfp.libreforge.safeTeleportAsync
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.TriggerParameter
+import org.bukkit.Bukkit
 import org.bukkit.Material
 
 object EffectTeleportToGround : Effect<NoCompileData>("teleport_to_ground") {
@@ -20,6 +22,12 @@ object EffectTeleportToGround : Effect<NoCompileData>("teleport_to_ground") {
         val location = player.location
         val world = location.world ?: return false
 
+        // Folia: the column below the player can only be read from the thread that owns it,
+        // which a projectile trigger's (the victim's region) is not.
+        if (!Bukkit.isOwnedByCurrentRegion(location)) {
+            return false
+        }
+
         var current = location.clone()
         if (current.y > world.maxHeight) {
             current.y = world.maxHeight.toDouble()
@@ -32,7 +40,7 @@ object EffectTeleportToGround : Effect<NoCompileData>("teleport_to_ground") {
             current = current.subtract(0.0, 1.0, 0.0)
         }
 
-        player.teleportAsync(current)
+        player.safeTeleportAsync(current)
 
         return true
     }

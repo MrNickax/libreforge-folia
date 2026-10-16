@@ -1,6 +1,7 @@
 package com.willfp.libreforge.triggers.impl
 
 import com.willfp.eco.core.events.EntityDeathByEntityEvent
+import com.willfp.libreforge.runOnOwnerThread
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.Trigger
 import com.willfp.libreforge.triggers.TriggerData
@@ -49,14 +50,22 @@ object TriggerKill : Trigger("kill") {
     }
 
     fun force(player: Player, victim: LivingEntity) {
-        this.dispatch(
-            player.toDispatcher(),
-            TriggerData(
-                player = player,
-                victim = victim,
-                location = victim.location,
-                value = victim.getAttribute(Attribute.MAX_HEALTH)!!.value
+        // The victim is read here, on the caller's thread (the victim's own for bleed), and the
+        // killer's effects run on the killer's: a bleed kill lands seconds after the hit, when the
+        // killer can be in another region.
+        val location = victim.location
+        val maxHealth = victim.getAttribute(Attribute.MAX_HEALTH)!!.value
+
+        player.runOnOwnerThread {
+            this.dispatch(
+                player.toDispatcher(),
+                TriggerData(
+                    player = player,
+                    victim = victim,
+                    location = location,
+                    value = maxHealth
+                )
             )
-        )
+        }
     }
 }

@@ -6,11 +6,13 @@ import com.willfp.libreforge.Dispatcher
 import com.willfp.libreforge.GlobalDispatcher
 import com.willfp.libreforge.get
 import com.willfp.libreforge.plugin
+import com.willfp.libreforge.runOnOwnerThread
 import com.willfp.libreforge.toDispatcher
 import com.willfp.libreforge.triggers.TriggerData
 import com.willfp.libreforge.triggers.impl.TriggerGroupCustom
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandSender
+import org.bukkit.entity.Entity
 import org.bukkit.entity.LivingEntity
 import org.bukkit.util.StringUtil
 import java.util.UUID
@@ -64,15 +66,27 @@ internal object CommandTrigger : Subcommand(
             ?.toDoubleOrNull()
 
         for (dispatcher in dispatchers) {
-            TriggerGroupCustom.create(trigger).dispatch(
-                dispatcher,
-                TriggerData(
-                    player = dispatcher.get(),
-                    victim = dispatcher.get(),
-                    location = dispatcher.get<LivingEntity>()?.location,
-                    value = value ?: 1.0
+            val fire = {
+                TriggerGroupCustom.create(trigger).dispatch(
+                    dispatcher,
+                    TriggerData(
+                        player = dispatcher.get(),
+                        victim = dispatcher.get(),
+                        location = dispatcher.get<LivingEntity>()?.location,
+                        value = value ?: 1.0
+                    )
                 )
-            )
+            }
+
+            // Folia: an entity's effects run on the thread that owns it, not on the command's
+            // (the global region for the console, the sender's region for a player).
+            val entity = dispatcher.get<Entity>()
+
+            if (entity != null) {
+                entity.runOnOwnerThread(fire)
+            } else {
+                fire()
+            }
         }
 
         sender.sendMessage(plugin.langYml.getMessage("triggered").replace("%id%", trigger))
