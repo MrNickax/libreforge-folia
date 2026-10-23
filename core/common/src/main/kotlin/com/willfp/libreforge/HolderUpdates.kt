@@ -2,6 +2,7 @@ package com.willfp.libreforge
 
 import com.willfp.eco.core.cache.EcoCache
 import com.willfp.eco.core.events.ArmorChangeEvent
+import io.papermc.paper.event.player.PlayerPickItemEvent
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -81,8 +82,17 @@ object ItemRefreshListener : Listener {
                 return
             }
         }
+        refreshAfterMainhandChange(player)
+    }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    fun onPickItem(event: PlayerPickItemEvent) {
+        // Pick-block can replace the item in the selected slot without changing slots,
+        // so PlayerItemHeldEvent alone does not cover middle-click selection.
+        refreshAfterMainhandChange(event.player)
+    }
 
+    private fun refreshAfterMainhandChange(player: Player) {
         val dispatcher = player.toDispatcher()
 
         // Immediately disable main-hand effects so a stale held-item enchant (e.g. blast
@@ -95,7 +105,9 @@ object ItemRefreshListener : Listener {
         player.scheduler.runDelayed(
             plugin,
             {
-                dispatcher.refreshHolders()
+                // This refresh must not be dropped by the general refresh cooldown:
+                // the main-hand effects were disabled and the inventory has now changed.
+                dispatcher.forceRefreshHolders()
             },
             {},
             1L
